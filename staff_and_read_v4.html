@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff & Read — Band Note Trainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#08090d;--surface:#0f1018;--card:#141620;--card2:#1a1d2e;
+  --border:#232640;--border2:#2e3258;
+  --accent:#6ee7f7;--gold:#f5c842;--red:#ff6b6b;--green:#4fffb0;
+  --purple:#b48eff;--pink:#ff79c6;--orange:#ffb347;
+  --text:#dde3f0;--muted:#4a5070;--muted2:#6a7090;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Fira Code',monospace;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:repeating-linear-gradient(180deg,transparent 0,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px)}
+
+.screen{display:none;min-height:100vh;flex-direction:column;align-items:center}
+.screen.active{display:flex}
+
+/* ══ AUTH SCREEN ══ */
+#auth{justify-content:center;padding:40px 20px}
+.auth-box{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);padding:32px}
+.auth-logo{font-family:'Unbounded',sans-serif;font-size:32px;font-weight:900;
+  background:linear-gradient(120deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-align:center;margin-bottom:4px}
+.auth-sub{font-size:9px;letter-spacing:0.35em;color:var(--muted);text-align:center;
+  text-transform:uppercase;margin-bottom:28px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:24px}
+.auth-tab{background:var(--card);padding:10px;font-family:'Fira Code',monospace;font-size:11px;
+  border:none;color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:0.1em;text-transform:uppercase}
+.auth-tab.on{background:var(--card2);color:var(--accent)}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px}
+.auth-field input{width:100%;background:var(--card);border:1px solid var(--border);
+  color:var(--text);padding:10px 12px;font-family:'Fira Code',monospace;font-size:12px;
+  outline:none;transition:border-color .2s}
+.auth-field input:focus{border-color:var(--accent)}
+.auth-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#000;border:none;padding:13px;font-family:'Unbounded',monospace;font-size:14px;
+  font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:0.05em;margin-top:4px}
+.auth-btn:hover{filter:brightness(1.1)}
+.auth-btn:disabled{background:var(--muted);cursor:not-allowed;filter:none}
+.auth-err{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);
+  color:var(--red);padding:8px 12px;font-size:11px;margin-top:10px;display:none}
+.auth-err.show{display:block}
+.auth-ok{background:rgba(79,255,176,0.1);border:1px solid rgba(79,255,176,0.3);
+  color:var(--green);padding:8px 12px;font-size:11px;margin-top:10px;display:none}
+.auth-ok.show{display:block}
+.auth-form{display:none}
+.auth-form.on{display:block}
+
+/* ══ DASHBOARD ══ */
+#dash{padding:24px 16px 48px;gap:16px;align-items:center}
+.dash-header{width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.dash-title{font-family:'Unbounded',sans-serif;font-size:clamp(20px,4vw,36px);font-weight:900;
+  background:linear-gradient(120deg,var(--accent),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.dash-user{font-size:10px;color:var(--muted);letter-spacing:0.15em}
+.dash-user span{color:var(--accent)}
+.dash-actions{display:flex;gap:8px;flex-wrap:wrap}
+.dash-btn{background:none;border:1px solid var(--border);color:var(--muted);
+  padding:7px 16px;font-family:'Fira Code',monospace;font-size:10px;
+  cursor:pointer;transition:all .15s;letter-spacing:0.1em}
+.dash-btn:hover{border-color:var(--text);color:var(--text)}
+.dash-btn.primary{border-color:var(--accent);color:var(--accent)}
+.dash-btn.primary:hover{background:var(--accent);color:#000}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;
+  width:100%;max-width:900px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-top:2px solid;padding:16px}
+.stat-card .sv{font-family:'Unbounded',sans-serif;font-size:32px;font-weight:900;line-height:1;margin-bottom:4px}
+.stat-card .sl{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+
+.section-title{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;
+  letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;
+  width:100%;max-width:900px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+.weak-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;
+  width:100%;max-width:900px}
+.weak-card{background:var(--card);border:1px solid var(--border);padding:12px;text-align:center}
+.weak-note{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;color:var(--red);margin-bottom:4px}
+.weak-pct{font-size:10px;color:var(--muted)}
+.weak-bar{height:3px;background:var(--border);margin-top:6px;border-radius:0}
+.weak-bar-fill{height:100%;background:var(--red);transition:width .5s}
+
+.hist-table{width:100%;max-width:900px;border-collapse:collapse}
+.hist-table th{background:var(--card2);color:var(--muted);font-size:9px;letter-spacing:0.15em;
+  text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.hist-table td{padding:8px 12px;font-size:11px;border-bottom:1px solid var(--border);color:var(--text)}
+.hist-table tr:hover td{background:rgba(110,231,247,0.03)}
+.tag-c{color:var(--green);font-size:9px;letter-spacing:0.1em}
+.tag-w{color:var(--red);font-size:9px;letter-spacing:0.1em}
+
+.empty-state{text-align:center;padding:40px;color:var(--muted);font-size:12px;
+  width:100%;max-width:900px;background:var(--card);border:1px dashed var(--border)}
+
+/* ══ MENU ══ */
+#menu{padding:24px 16px 48px;gap:0;max-width:100%}
+.logo-wrap{text-align:center;margin-bottom:28px;width:100%;max-width:1100px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{font-family:'Unbounded',sans-serif;font-size:clamp(28px,6vw,64px);
+  font-weight:900;letter-spacing:-0.02em;line-height:1;
+  background:linear-gradient(120deg,var(--accent) 0%,var(--purple) 50%,var(--pink) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.user-chip{font-size:9px;letter-spacing:0.2em;color:var(--accent);
+  border:1px solid rgba(110,231,247,0.25);padding:4px 10px}
+.menu-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mbtn{background:none;border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;font-family:'Fira Code',monospace;font-size:9px;
+  cursor:pointer;transition:all .15s;letter-spacing:0.1em}
+.mbtn:hover{border-color:var(--text);color:var(--text)}
+
+.menu-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:1100px;margin-bottom:16px}
+@media(max-width:768px){.menu-cols{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);padding:14px}
+.panel-title{font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:0.25em;color:var(--muted);text-transform:uppercase;
+  margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.search-box{position:relative;margin-bottom:8px}
+.search-box input{width:100%;background:var(--card);border:1px solid var(--border);
+  color:var(--text);padding:7px 10px 7px 28px;font-family:'Fira Code',monospace;font-size:11px;
+  outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:var(--accent)}
+.search-box::before{content:'⌕';position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:14px;pointer-events:none}
+.search-box input::placeholder{color:var(--muted)}
+.filter-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.ftag{background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:2px 8px;font-size:9px;letter-spacing:0.1em;cursor:pointer;
+  text-transform:uppercase;transition:all .15s;font-family:'Fira Code',monospace}
+.ftag:hover{border-color:var(--accent);color:var(--accent)}
+.ftag.on{background:rgba(110,231,247,0.1);border-color:var(--accent);color:var(--accent)}
+.inst-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;
+  max-height:320px;overflow-y:auto;padding-right:2px}
+.inst-grid::-webkit-scrollbar{width:3px}
+.inst-grid::-webkit-scrollbar-thumb{background:var(--border2)}
+.ibtn{background:var(--card);border:1.5px solid var(--border);color:var(--muted2);
+  padding:8px 4px;font-family:'Fira Code',monospace;font-size:10px;
+  cursor:pointer;transition:all .15s;text-align:center;display:flex;
+  flex-direction:column;align-items:center;gap:3px;line-height:1.3}
+.ibtn .ii{font-size:18px}
+.ibtn .ik{font-size:7px;color:var(--muted);border:1px solid var(--border);padding:1px 3px;margin-top:1px}
+.ibtn:hover{border-color:var(--accent);color:var(--text)}
+.ibtn.sel{border-color:var(--accent);background:rgba(110,231,247,0.07);color:var(--accent)}
+.ibtn.sel .ik{border-color:rgba(110,231,247,0.4);color:var(--accent)}
+.ibtn.hidden{display:none}
+.scale-list{display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto;padding-right:2px}
+.scale-list::-webkit-scrollbar{width:3px}
+.scale-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.sbtn{background:var(--card);border:1.5px solid var(--border);padding:7px 10px;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
+.sbtn:hover{border-color:var(--gold)}
+.sbtn.sel{border-color:var(--gold);background:rgba(245,200,66,0.06)}
+.sbtn.hidden{display:none}
+.sbtn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sbtn-info{flex:1;min-width:0}
+.sbtn-name{font-size:10px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbtn.sel .sbtn-name{color:var(--gold)}
+.sbtn-cat{font-size:8px;color:var(--muted);letter-spacing:0.1em}
+.sbtn-check{width:12px;height:12px;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0}
+.sbtn.sel .sbtn-check{background:var(--gold);border-color:var(--gold);color:#000}
+.sel-count{font-size:10px;color:var(--muted);margin-top:5px}
+.sel-count span{color:var(--accent)}
+.start-area{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:1100px}
+.start-btn{background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#000;border:none;padding:14px 56px;
+  font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;
+  cursor:pointer;transition:all .2s;letter-spacing:0.05em}
+.start-btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.start-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none;filter:none}
+.guide-btn{background:none;border:1px solid var(--border);color:var(--muted);
+  padding:7px 20px;font-family:'Fira Code',monospace;font-size:10px;
+  cursor:pointer;letter-spacing:0.15em;transition:all .15s}
+.guide-btn:hover{border-color:var(--text);color:var(--text)}
+
+/* ══ GAME ══ */
+#game{padding:12px 14px;gap:10px;align-items:center}
+.gtop{display:flex;width:100%;max-width:760px;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.gbk{background:none;border:1px solid var(--border);color:var(--muted);
+  padding:6px 12px;font-family:'Fira Code',monospace;font-size:10px;
+  cursor:pointer;transition:all .15s;letter-spacing:0.1em}
+.gbk:hover{border-color:var(--text);color:var(--text)}
+.gbadge{font-size:9px;letter-spacing:0.2em;color:var(--accent);
+  border:1px solid rgba(110,231,247,0.25);padding:4px 10px;text-transform:uppercase}
+.gscore{display:flex;gap:14px;font-size:11px}
+.gs-c{color:var(--green);font-weight:500}
+.gs-w{color:var(--red);font-weight:500}
+.prog{width:100%;max-width:760px;height:2px;background:var(--border)}
+.prog-f{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .4s}
+
+/* sound button */
+.sound-row{display:flex;justify-content:center;gap:8px;width:100%;max-width:760px}
+.sound-btn{background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:6px 16px;font-family:'Fira Code',monospace;font-size:10px;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.sound-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sound-btn.playing{border-color:var(--accent);color:var(--accent);background:rgba(110,231,247,0.08)}
+
+.staff-box{width:100%;max-width:760px;background:#090b10;
+  border:1px solid var(--border);padding:10px 8px 14px;position:relative}
+.staff-qlabel{font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:0.3em;color:var(--muted);text-align:center;margin-bottom:6px}
+#staff-svg{width:100%;display:block}
+
+.ans-area{width:100%;max-width:760px;display:flex;flex-direction:column;gap:5px}
+.nbtns{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.nbtn{background:var(--card);border:2px solid var(--border);color:var(--text);
+  padding:13px 4px;font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;
+  cursor:pointer;transition:all .12s;text-align:center}
+.nbtn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px)}
+.nbtn.sel{border-color:var(--accent);color:var(--accent);background:rgba(110,231,247,0.07)}
+.nbtn.fc{background:var(--green);border-color:var(--green);color:#000;animation:pop .3s}
+.nbtn.fw{background:var(--red);border-color:var(--red);color:#fff;animation:wag .3s}
+.acbtns{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.acbtn{background:var(--card);border:2px solid var(--border);color:var(--muted);
+  padding:8px;font-family:'Fira Code',monospace;font-size:11px;font-weight:500;
+  cursor:pointer;transition:all .12s;text-align:center}
+.acbtn:hover{border-color:var(--purple);color:var(--purple)}
+.acbtn.sel{border-color:var(--purple);background:rgba(180,142,255,0.08);color:var(--purple)}
+.ans-disp{text-align:center;padding:7px;font-family:'Unbounded',sans-serif;
+  font-size:38px;font-weight:900;color:var(--text);min-height:56px;
+  background:var(--card);border:1px solid var(--border)}
+.actbtns{display:grid;grid-template-columns:1fr 2fr 1fr;gap:4px}
+.actbtn{padding:12px;border:2px solid;font-family:'Unbounded',sans-serif;
+  font-size:13px;font-weight:700;letter-spacing:0.08em;cursor:pointer;
+  transition:all .15s;background:transparent}
+.ab-retry{border-color:var(--border);color:var(--muted)}
+.ab-retry:hover{border-color:var(--text);color:var(--text)}
+.ab-check{border-color:var(--accent);color:var(--accent)}
+.ab-check:hover{background:var(--accent);color:#000}
+.ab-next{border-color:var(--green);color:var(--green)}
+.ab-next:hover{background:var(--green);color:#000}
+
+.correct-msg{font-family:'Unbounded',sans-serif;font-size:40px;font-weight:900;
+  color:var(--green);text-align:center;letter-spacing:0.05em;animation:pop .4s ease;display:none}
+.ipanel{width:100%;max-width:760px;background:var(--card2);
+  border-left:3px solid var(--red);padding:12px 14px;display:none;animation:slin .2s}
+.ipanel.show{display:block}
+.ipanel h3{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;
+  color:var(--gold);letter-spacing:0.05em;margin-bottom:8px}
+.ipcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:500px){.ipcols{grid-template-columns:1fr}}
+.ipc label{font-size:8px;text-transform:uppercase;letter-spacing:0.2em;
+  color:var(--muted);display:block;margin-bottom:3px}
+.ipc p,.ipc div{font-size:11px;color:var(--text);line-height:1.6}
+.frow{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.fdot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:var(--muted)}
+.fdot.on{background:var(--gold);border-color:var(--gold);color:#000;font-weight:700}
+.fdot.tag{border-radius:3px;width:auto;padding:0 5px;font-size:8px}
+.shint{background:rgba(110,231,247,0.04);border:1px solid rgba(110,231,247,0.15);
+  padding:7px 10px;font-size:10px;color:var(--text);line-height:1.7;margin-top:8px}
+.shint strong{color:var(--accent)}
+
+/* ══ GUIDE ══ */
+#guide{padding:24px 16px 48px;gap:14px;align-items:center}
+#guide h1{font-family:'Unbounded',sans-serif;font-size:clamp(22px,4vw,44px);
+  font-weight:900;color:var(--accent);letter-spacing:0.02em;text-align:center}
+.guide-search{position:relative;width:100%;max-width:900px}
+.guide-search input{width:100%;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px 9px 32px;font-family:'Fira Code',monospace;font-size:11px;
+  outline:none;transition:border-color .2s}
+.guide-search input:focus{border-color:var(--accent)}
+.guide-search::before{content:'⌕';position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:15px}
+.guide-filters{display:flex;flex-wrap:wrap;gap:4px;width:100%;max-width:900px}
+.guide-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:10px;width:100%;max-width:900px}
+.gcard{background:var(--card);border:1px solid var(--border);border-top:3px solid;padding:14px}
+.gcard.hidden{display:none}
+.gcard h3{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:0.03em;margin-bottom:5px}
+.gcard p{font-size:10px;color:var(--muted);line-height:1.7;margin-bottom:7px}
+.gpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.gpill{background:var(--bg);border:1px solid var(--border);padding:1px 6px;
+  font-size:9px;font-weight:500;color:var(--accent)}
+.gtip{background:rgba(245,200,66,0.05);border-left:2px solid var(--gold);
+  padding:5px 8px;font-size:9px;color:var(--muted);line-height:1.6}
+.gtip strong{color:var(--gold)}
+.gcat-tag{display:inline-block;font-size:7px;letter-spacing:0.15em;
+  text-transform:uppercase;padding:1px 5px;border:1px solid var(--border);
+  color:var(--muted);margin-bottom:5px}
+
+#flash{position:fixed;inset:0;pointer-events:none;z-index:9997;opacity:0;transition:opacity .12s}
+#flash.c{background:rgba(79,255,176,0.06);opacity:1}
+#flash.w{background:rgba(255,107,107,0.06);opacity:1}
+
+/* loading */
+.loading{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  font-family:'Unbounded',sans-serif;font-size:14px;color:var(--muted);
+  flex-direction:column;gap:12px}
+.spin{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes wag{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes slin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:500px){
+  .nbtns{grid-template-columns:repeat(4,1fr)}
+  .actbtns{grid-template-columns:1fr 1fr 1fr}
+  .inst-grid{grid-template-columns:repeat(3,1fr)}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+
+<!-- LOADING -->
+<div class="loading" id="loading">
+  <div class="spin"></div>
+  <div>Loading...</div>
+</div>
+
+<!-- ══ AUTH ══ -->
+<div class="screen" id="auth">
+  <div class="auth-box">
+    <div class="auth-logo">STAFF &amp; READ</div>
+    <div class="auth-sub">Band Note Trainer · Sign in to track progress</div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" onclick="switchTab('login')">Log In</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+    <!-- LOGIN -->
+    <div class="auth-form on" id="form-login">
+      <div class="auth-field"><label>Email</label><input type="email" id="li-email" placeholder="you@school.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="li-pass" placeholder="••••••••"></div>
+      <button class="auth-btn" onclick="doLogin()">LOG IN</button>
+      <div class="auth-err" id="li-err"></div>
+    </div>
+    <!-- SIGNUP -->
+    <div class="auth-form" id="form-signup">
+      <div class="auth-field"><label>Username</label><input type="text" id="su-user" placeholder="cooltrombonist" maxlength="20"></div>
+      <div class="auth-field"><label>Email</label><input type="email" id="su-email" placeholder="you@school.com"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="su-pass" placeholder="at least 6 characters"></div>
+      <button class="auth-btn" onclick="doSignup()">CREATE ACCOUNT</button>
+      <div class="auth-err" id="su-err"></div>
+      <div class="auth-ok" id="su-ok"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div class="screen" id="dash">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">STAFF &amp; READ</div>
+      <div class="dash-user">Logged in as <span id="dash-username">—</span></div>
+    </div>
+    <div class="dash-actions">
+      <button class="dash-btn primary" onclick="showScreen('menu')">▶ PRACTICE</button>
+      <button class="dash-btn" onclick="showScreen('guide')">SCALE GUIDE</button>
+      <button class="dash-btn" onclick="doLogout()">LOG OUT</button>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card" style="border-top-color:var(--accent)">
+      <div class="sv" style="color:var(--accent)" id="stat-total">—</div>
+      <div class="sl">Total Answers</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--green)">
+      <div class="sv" style="color:var(--green)" id="stat-correct">—</div>
+      <div class="sl">Correct</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--red)">
+      <div class="sv" style="color:var(--red)" id="stat-wrong">—</div>
+      <div class="sl">Incorrect</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--gold)">
+      <div class="sv" style="color:var(--gold)" id="stat-pct">—</div>
+      <div class="sl">Accuracy</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--purple)">
+      <div class="sv" style="color:var(--purple)" id="stat-inst">—</div>
+      <div class="sl">Instruments Tried</div>
+    </div>
+    <div class="stat-card" style="border-top-color:var(--pink)">
+      <div class="sv" style="color:var(--pink)" id="stat-sessions">—</div>
+      <div class="sl">Sessions</div>
+    </div>
+  </div>
+
+  <div class="section-title">⚠ WEAK NOTES — needs work</div>
+  <div class="weak-grid" id="weak-grid">
+    <div class="empty-state">No data yet — start practicing!</div>
+  </div>
+
+  <div class="section-title">RECENT ACTIVITY</div>
+  <table class="hist-table" id="hist-table">
+    <thead><tr>
+      <th>Note</th><th>Instrument</th><th>Scale</th><th>Result</th><th>When</th>
+    </tr></thead>
+    <tbody id="hist-body"></tbody>
+  </table>
+</div>
+
+<!-- ══ MENU ══ -->
+<div class="screen" id="menu">
+  <div class="logo-wrap">
+    <div class="logo">STAFF &amp; READ</div>
+    <div class="logo-right">
+      <div class="user-chip" id="menu-user">—</div>
+      <div class="menu-btns">
+        <button class="mbtn" onclick="showDash()">📊 Dashboard</button>
+        <button class="mbtn" onclick="doLogout()">Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-cols">
+    <div class="panel">
+      <div class="panel-title">① Instrument</div>
+      <div class="search-box"><input type="text" id="inst-search" placeholder="Search instruments..." oninput="filterInsts()"></div>
+      <div class="filter-row" id="inst-filters"></div>
+      <div class="inst-grid" id="inst-grid"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">② Scales / Note Pools</div>
+      <div class="search-box"><input type="text" id="scale-search" placeholder="Search scales..." oninput="filterScales()"></div>
+      <div class="filter-row" id="scale-filters"></div>
+      <div class="scale-list" id="scale-list"></div>
+      <div class="sel-count">Selected: <span id="scale-count">0</span> scale(s)</div>
+    </div>
+  </div>
+
+  <div class="start-area">
+    <button class="start-btn" id="start-btn" disabled onclick="startGame()">START TRAINING</button>
+    <button class="guide-btn" onclick="showGuide()">SCALE GUIDE &amp; REFERENCE</button>
+  </div>
+</div>
+
+<!-- ══ GAME ══ -->
+<div class="screen" id="game">
+  <div class="gtop">
+    <button class="gbk" onclick="goMenu()">← Menu</button>
+    <div class="gbadge" id="gbadge">—</div>
+    <div class="gscore">✓ <span class="gs-c" id="gsc">0</span> &nbsp; ✗ <span class="gs-w" id="gsw">0</span></div>
+  </div>
+  <div class="prog"><div class="prog-f" id="prog" style="width:0%"></div></div>
+
+  <div class="staff-box">
+    <div class="staff-qlabel" id="sqlbl">IDENTIFY THIS NOTE</div>
+    <svg id="staff-svg" viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="sound-row">
+    <button class="sound-btn" id="play-btn" onclick="playCurrentNote()">🔊 Play Note</button>
+    <button class="sound-btn" id="replay-btn" onclick="playCurrentNote()" style="display:none">↻ Replay</button>
+  </div>
+
+  <div class="correct-msg" id="cmsg">CORRECT!</div>
+  <div class="ipanel" id="ipanel">
+    <h3 id="iptitle">—</h3>
+    <div class="ipcols" id="ipcols"></div>
+    <div class="shint" id="iphint"></div>
+  </div>
+
+  <div class="ans-area">
+    <div class="nbtns" id="nbtns"></div>
+    <div class="acbtns" id="acbtns"></div>
+    <div class="ans-disp" id="ansdisp">—</div>
+    <div class="actbtns">
+      <button class="actbtn ab-retry" onclick="retry()">RETRY</button>
+      <button class="actbtn ab-check" onclick="checkAns()">CHECK ANSWER</button>
+      <button class="actbtn ab-next" onclick="nextNote()">NEXT →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GUIDE ══ -->
+<div class="screen" id="guide">
+  <h1>SCALE REFERENCE</h1>
+  <div class="guide-search"><input type="text" id="guide-search" placeholder="Search scales..." oninput="filterGuide()"></div>
+  <div class="guide-filters" id="guide-filter-row"></div>
+  <div class="guide-grid" id="guide-grid"></div>
+  <button class="start-btn" onclick="goMenu()" style="margin-top:16px;padding:12px 36px;font-size:14px">← BACK</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════
+const SUPA_URL = 'https://qyumftwevfkivvdnqtbd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5dW1mdHdldmZraXZ2ZG5xdGJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDExNTIsImV4cCI6MjA5MDQ3NzE1Mn0.SADrHz1AUhWsT8HX4TF0-AtBFlbI8PQwn1phYvY1FM0';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentUsername = '';
+let sessionCount = 0;
+
+// ════════════════════════════════════════════════
+// AUDIO ENGINE — Web Audio API synth
+// ════════════════════════════════════════════════
+let audioCtx = null;
+function getAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+
+// Note frequencies (concert pitch, A4=440)
+const NOTE_FREQ = {
+  'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
+  'Db2':69.30,'Eb2':77.78,'Gb2':92.50,'Ab2':103.83,'Bb2':116.54,
+  'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+  'Db3':138.59,'Eb3':155.56,'Gb3':185.00,'Ab3':207.65,'Bb3':233.08,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'Db4':277.18,'Eb4':311.13,'Gb4':369.99,'Ab4':415.30,'Bb4':466.16,
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00,'B5':987.77,
+  'Db5':554.37,'Eb5':622.25,'Gb5':739.99,'Ab5':830.61,'Bb5':932.33,
+  'C6':1046.50,'D6':1174.66,
+};
+
+function playFreq(hz, duration=1.2, type='sine'){
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(hz, ctx.currentTime);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(2000, ctx.currentTime);
+
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playNote(noteId){
+  // noteId = "C4", "Bb3" etc (concert pitch)
+  const norm = noteId.replace('C#','Db').replace('D#','Eb').replace('F#','Gb').replace('G#','Ab').replace('A#','Bb');
+  const hz = NOTE_FREQ[norm];
+  if(hz) playFreq(hz, 1.4, 'sine');
+}
+
+function playCorrect(){
+  const ctx = getAudio();
+  [523.25, 659.25, 783.99].forEach((hz, i) => {
+    setTimeout(() => playFreq(hz, 0.3, 'sine'), i * 80);
+  });
+}
+
+function playWrong(){
+  playFreq(180, 0.4, 'sawtooth');
+}
+
+function playCurrentNote(){
+  if(!cur) return;
+  const btn = document.getElementById('play-btn');
+  btn.classList.add('playing');
+  // Play the CONCERT pitch of the note
+  playNote(cur.concert + (cur.noteId.match(/\d+/)||['4'])[0]);
+  setTimeout(()=>btn.classList.remove('playing'), 1400);
+}
+
+// ════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('on',(i===0&&tab==='login')||(i===1&&tab==='signup')));
+  document.getElementById('form-login').classList.toggle('on', tab==='login');
+  document.getElementById('form-signup').classList.toggle('on', tab==='signup');
+}
+
+async function doLogin(){
+  const email = document.getElementById('li-email').value.trim();
+  const pass = document.getElementById('li-pass').value;
+  const err = document.getElementById('li-err');
+  err.classList.remove('show');
+  if(!email||!pass){showErr(err,'Fill in all fields.');return;}
+  const {data,error} = await sb.auth.signInWithPassword({email,password:pass});
+  if(error){showErr(err,error.message);return;}
+  await afterLogin(data.user);
+}
+
+async function doSignup(){
+  const username = document.getElementById('su-user').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const email = document.getElementById('su-email').value.trim();
+  const pass = document.getElementById('su-pass').value;
+  const err = document.getElementById('su-err');
+  const ok = document.getElementById('su-ok');
+  err.classList.remove('show'); ok.classList.remove('show');
+  if(!username||!email||!pass){showErr(err,'Fill in all fields.');return;}
+  if(username.length < 3){showErr(err,'Username must be at least 3 characters.');return;}
+  if(pass.length < 6){showErr(err,'Password must be at least 6 characters.');return;}
+
+  // Check username taken
+  const {data:existing} = await sb.from('profiles').select('username').eq('username',username).single();
+  if(existing){showErr(err,'Username already taken.');return;}
+
+  const {data,error} = await sb.auth.signUp({email,password:pass});
+  if(error){showErr(err,error.message);return;}
+
+  if(data.user){
+    await sb.from('profiles').insert({id:data.user.id,username});
+    ok.textContent='Account created! You can now log in.';
+    ok.classList.add('show');
+    setTimeout(()=>switchTab('login'),2000);
+  } else {
+    ok.textContent='Check your email to confirm your account, then log in.';
+    ok.classList.add('show');
+  }
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser=null; currentUsername='';
+  showScreen('auth');
+}
+
+function showErr(el,msg){el.textContent=msg;el.classList.add('show');}
+
+async function afterLogin(user){
+  currentUser = user;
+  const {data:profile} = await sb.from('profiles').select('username').eq('id',user.id).single();
+  currentUsername = profile?.username || user.email.split('@')[0];
+  document.getElementById('dash-username').textContent = currentUsername;
+  document.getElementById('menu-user').textContent = currentUsername;
+  await loadDashboard();
+  showScreen('dash');
+}
+
+// ════════════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════════════
+async function loadDashboard(){
+  if(!currentUser) return;
+  const {data:rows} = await sb.from('progress')
+    .select('*').eq('user_id',currentUser.id)
+    .order('created_at',{ascending:false}).limit(500);
+
+  if(!rows||rows.length===0){
+    document.getElementById('stat-total').textContent='0';
+    document.getElementById('stat-correct').textContent='0';
+    document.getElementById('stat-wrong').textContent='0';
+    document.getElementById('stat-pct').textContent='—';
+    document.getElementById('stat-inst').textContent='0';
+    document.getElementById('stat-sessions').textContent='0';
+    document.getElementById('weak-grid').innerHTML='<div class="empty-state">No data yet — start practicing!</div>';
+    document.getElementById('hist-body').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No sessions yet</td></tr>';
+    return;
+  }
+
+  const total = rows.length;
+  const correct = rows.filter(r=>r.correct).length;
+  const wrong = total - correct;
+  const pct = Math.round(correct/total*100);
+  const insts = new Set(rows.map(r=>r.instrument)).size;
+  // Estimate sessions by grouping by date
+  const days = new Set(rows.map(r=>r.created_at.slice(0,10))).size;
+
+  document.getElementById('stat-total').textContent=total;
+  document.getElementById('stat-correct').textContent=correct;
+  document.getElementById('stat-wrong').textContent=wrong;
+  document.getElementById('stat-pct').textContent=pct+'%';
+  document.getElementById('stat-inst').textContent=insts;
+  document.getElementById('stat-sessions').textContent=days;
+
+  // Weak notes — notes with <60% accuracy, min 3 attempts
+  const noteMap = {};
+  rows.forEach(r=>{
+    if(!noteMap[r.note]) noteMap[r.note]={c:0,w:0};
+    r.correct ? noteMap[r.note].c++ : noteMap[r.note].w++;
+  });
+  const weak = Object.entries(noteMap)
+    .filter(([n,d])=>(d.c+d.w)>=3)
+    .map(([n,d])=>({note:n,pct:Math.round(d.c/(d.c+d.w)*100),total:d.c+d.w}))
+    .filter(x=>x.pct<75)
+    .sort((a,b)=>a.pct-b.pct)
+    .slice(0,12);
+
+  const wg = document.getElementById('weak-grid');
+  if(weak.length===0){
+    wg.innerHTML='<div class="empty-state">No weak notes yet — keep going!</div>';
+  } else {
+    wg.innerHTML=weak.map(w=>`
+      <div class="weak-card">
+        <div class="weak-note">${w.note}</div>
+        <div class="weak-pct">${w.pct}% correct · ${w.total} tries</div>
+        <div class="weak-bar"><div class="weak-bar-fill" style="width:${w.pct}%"></div></div>
+      </div>`).join('');
+  }
+
+  // Recent history
+  const recent = rows.slice(0,30);
+  const hb = document.getElementById('hist-body');
+  hb.innerHTML = recent.map(r=>`
+    <tr>
+      <td><strong>${r.note}</strong></td>
+      <td>${r.instrument}</td>
+      <td style="color:var(--muted);font-size:10px">${r.scale}</td>
+      <td>${r.correct?'<span class="tag-c">✓ CORRECT</span>':'<span class="tag-w">✗ WRONG</span>'}</td>
+      <td style="color:var(--muted);font-size:10px">${timeAgo(r.created_at)}</td>
+    </tr>`).join('');
+}
+
+function timeAgo(ts){
+  const d = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(d/60000);
+  if(m<1) return 'just now';
+  if(m<60) return m+'m ago';
+  const h = Math.floor(m/60);
+  if(h<24) return h+'h ago';
+  return Math.floor(h/24)+'d ago';
+}
+
+async function saveProgress(note, instrument, scale, correct){
+  if(!currentUser) return;
+  await sb.from('progress').insert({
+    user_id: currentUser.id,
+    note, instrument, scale, correct
+  });
+}
+
+async function showDash(){
+  await loadDashboard();
+  showScreen('dash');
+}
+
+// ════════════════════════════════════════════════
+// DATA — identical to v3 (instruments + scales)
+// ════════════════════════════════════════════════
+const SEMI=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const ENHAR={'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb','Cb':'B','Fb':'E'};
+function normalize(n){return ENHAR[n]||n;}
+function semiIdx(n){return SEMI.indexOf(normalize(n));}
+function transposePitch(n,semi){const i=semiIdx(n);if(i<0)return n;return SEMI[(i+semi+12)%12];}
+
+const INSTRUMENTS={
+  trombone:{name:'Trombone',icon:'🎺',family:'Brass',clef:'bass',transpose:0,key:'Concert',ft:'trombone',desc:'Concert pitch. Bass clef. 7 slide positions.'},
+  bassTrombone:{name:'Bass Trombone',icon:'🎺',family:'Brass',clef:'bass',transpose:0,key:'Concert',ft:'trombone',desc:'Concert pitch. Bass clef. Trigger extends range.'},
+  euphonium:{name:'Euphonium',icon:'🎶',family:'Brass',clef:'bass',transpose:0,key:'Concert',ft:'valve3',desc:'Concert pitch. Bass clef. 3 valves.'},
+  baritoneTc:{name:'Baritone (TC)',icon:'🎶',family:'Brass',clef:'treble',transpose:2,key:'Bb',ft:'valve3',desc:'Bb transposing treble clef.'},
+  tuba:{name:'Tuba',icon:'🔔',family:'Brass',clef:'bass',transpose:0,key:'Concert',ft:'valve3',desc:'Concert pitch. Bass clef. Lowest brass.'},
+  sousaphone:{name:'Sousaphone',icon:'🔔',family:'Brass',clef:'bass',transpose:0,key:'Concert',ft:'valve3',desc:'Concert pitch. Marching tuba.'},
+  trumpet:{name:'Trumpet',icon:'🎺',family:'Brass',clef:'treble',transpose:2,key:'Bb',ft:'valve3',desc:'Bb transposing. Treble clef. 3 valves.'},
+  cornet:{name:'Cornet',icon:'🎺',family:'Brass',clef:'treble',transpose:2,key:'Bb',ft:'valve3',desc:'Bb transposing. Mellower than trumpet.'},
+  flugelhorn:{name:'Flugelhorn',icon:'🎺',family:'Brass',clef:'treble',transpose:2,key:'Bb',ft:'valve3',desc:'Bb transposing. Warm, jazz-friendly.'},
+  frenchHorn:{name:'French Horn',icon:'🪗',family:'Brass',clef:'treble',transpose:7,key:'F',ft:'horn',desc:'F transposing. Writes a 5th higher.'},
+  melloHorn:{name:'Mellophone',icon:'🪗',family:'Brass',clef:'treble',transpose:9,key:'Eb/F',ft:'valve3',desc:'Marching horn. Eb transposing.'},
+  flute:{name:'Flute',icon:'🎵',family:'Woodwind',clef:'treble',transpose:0,key:'Concert',ft:'flute',desc:'Concert pitch. Treble clef. No reed.'},
+  piccolo:{name:'Piccolo',icon:'🎵',family:'Woodwind',clef:'treble',transpose:0,key:'Concert',ft:'flute',desc:'Concert pitch, sounds octave higher.'},
+  altoFlute:{name:'Alto Flute',icon:'🎵',family:'Woodwind',clef:'treble',transpose:5,key:'G',ft:'flute',desc:'G transposing. Dark low register.'},
+  oboe:{name:'Oboe',icon:'🎼',family:'Woodwind',clef:'treble',transpose:0,key:'Concert',ft:'oboe',desc:'Concert pitch. Double reed.'},
+  corAnglais:{name:'Cor Anglais',icon:'🎼',family:'Woodwind',clef:'treble',transpose:7,key:'F',ft:'oboe',desc:'English Horn. F transposing.'},
+  bassoon:{name:'Bassoon',icon:'🎼',family:'Woodwind',clef:'bass',transpose:0,key:'Concert',ft:'bassoon',desc:'Concert pitch. Bass clef. Double reed.'},
+  contraBassoon:{name:'Contrabassoon',icon:'🎼',family:'Woodwind',clef:'bass',transpose:0,key:'Concert',ft:'bassoon',desc:'Concert pitch. Sounds octave lower.'},
+  clarinet:{name:'Clarinet',icon:'🎵',family:'Woodwind',clef:'treble',transpose:2,key:'Bb',ft:'clarinet',desc:'Bb transposing. Cylindrical bore.'},
+  ebClarinet:{name:'Eb Clarinet',icon:'🎵',family:'Woodwind',clef:'treble',transpose:-3,key:'Eb',ft:'clarinet',desc:'Eb transposing. Piercing high register.'},
+  aClarinet:{name:'A Clarinet',icon:'🎵',family:'Woodwind',clef:'treble',transpose:3,key:'A',ft:'clarinet',desc:'A transposing. Orchestral favorite.'},
+  bassClarinet:{name:'Bass Clarinet',icon:'🎵',family:'Woodwind',clef:'treble',transpose:2,key:'Bb',ft:'clarinet',desc:'Bb transposing. Low, dark sound.'},
+  sopranoSax:{name:'Soprano Sax',icon:'🎷',family:'Woodwind',clef:'treble',transpose:2,key:'Bb',ft:'sax',desc:'Bb transposing. Bright, penetrating.'},
+  altoSax:{name:'Alto Sax',icon:'🎷',family:'Woodwind',clef:'treble',transpose:9,key:'Eb',ft:'sax',desc:'Eb transposing. Most common sax.'},
+  tenorSax:{name:'Tenor Sax',icon:'🎷',family:'Woodwind',clef:'treble',transpose:2,key:'Bb',ft:'sax',desc:'Bb transposing. Rich, full tone.'},
+  bariSax:{name:'Bari Sax',icon:'🎷',family:'Woodwind',clef:'treble',transpose:9,key:'Eb',ft:'sax',desc:'Eb transposing. Dark and powerful.'},
+  violin:{name:'Violin',icon:'🎻',family:'Strings',clef:'treble',transpose:0,key:'Concert',ft:'bowed',desc:'Concert pitch. Treble clef. 4 strings.'},
+  viola:{name:'Viola',icon:'🎻',family:'Strings',clef:'alto',transpose:0,key:'Concert',ft:'bowed',desc:'Concert pitch. Alto clef.'},
+  cello:{name:'Cello',icon:'🎻',family:'Strings',clef:'bass',transpose:0,key:'Concert',ft:'bowed',desc:'Concert pitch. Bass clef.'},
+  doubleBass:{name:'Double Bass',icon:'🎻',family:'Strings',clef:'bass',transpose:0,key:'Concert',ft:'bowed',desc:'Concert pitch. Sounds octave lower.'},
+  piano:{name:'Piano',icon:'🎹',family:'Keyboard',clef:'treble',transpose:0,key:'Concert',ft:'keys',desc:'Concert pitch. Reference instrument.'},
+  marimba:{name:'Marimba',icon:'🪘',family:'Perc/Keys',clef:'treble',transpose:0,key:'Concert',ft:'keys',desc:'Concert pitch. Mallet percussion.'},
+  xylophone:{name:'Xylophone',icon:'🪘',family:'Perc/Keys',clef:'treble',transpose:0,key:'Concert',ft:'keys',desc:'Concert pitch. Sounds octave higher.'},
+};
+
+const SCALE_CATS={'Major Keys':'#38bdf8','Minor Keys':'#a78bfa','Modes':'#4fffb0','Jazz':'#fbbf24','Blues':'#ff79c6','Exotic/World':'#f87171','Symmetric':'#ffb347','Pentatonic':'#6ee7f7','Chromatic':'#e2e8f0','Classical':'#b48eff','Bebop':'#ff6b6b'};
+
+const ALL_SCALES={
+  'C Major':{c:'Major Keys',notes:['C','D','E','F','G','A','B'],desc:'No sharps/flats. Universal reference.',tip:'Treble lines: E G B D F. Spaces: F A C E.',pron:'C MAY-jur'},
+  'G Major':{c:'Major Keys',notes:['G','A','B','C','D','E','Gb'],desc:'1 sharp (F#).',tip:'F# just above treble staff.',pron:'G MAY-jur'},
+  'D Major':{c:'Major Keys',notes:['D','E','Gb','G','A','B','Db'],desc:'2 sharps.',tip:'F# and C#.',pron:'D MAY-jur'},
+  'A Major':{c:'Major Keys',notes:['A','B','Db','D','E','Gb','Ab'],desc:'3 sharps.',tip:'Wide range challenge.',pron:'A MAY-jur'},
+  'E Major':{c:'Major Keys',notes:['E','Gb','Ab','A','B','Db','Eb'],desc:'4 sharps.',tip:'4 sharps — stay sharp on all half steps.',pron:'E MAY-jur'},
+  'B Major':{c:'Major Keys',notes:['B','Db','Eb','E','Gb','Ab','Bb'],desc:'5 sharps.',tip:'Almost everything is sharp.',pron:'B MAY-jur'},
+  'F Major':{c:'Major Keys',notes:['F','G','A','Bb','C','D','E'],desc:'1 flat (Bb).',tip:'Bb is the only accidental.',pron:'F MAY-jur'},
+  'Bb Major':{c:'Major Keys',notes:['Bb','C','D','Eb','F','G','A'],desc:'2 flats. Essential for brass.',tip:'1st position trombone = Bb.',pron:'B-flat MAY-jur'},
+  'Eb Major':{c:'Major Keys',notes:['Eb','F','G','Ab','Bb','C','D'],desc:'3 flats. Very common in band.',tip:'Push air through Ab.',pron:'E-flat MAY-jur'},
+  'Ab Major':{c:'Major Keys',notes:['Ab','Bb','C','Db','Eb','F','G'],desc:'4 flats.',tip:'Rich, full sound.',pron:'A-flat MAY-jur'},
+  'Db Major':{c:'Major Keys',notes:['Db','Eb','F','Gb','Ab','Bb','C'],desc:'5 flats.',tip:'Go slow and deliberate.',pron:'D-flat MAY-jur'},
+  'Gb Major':{c:'Major Keys',notes:['Gb','Ab','Bb','B','Db','Eb','F'],desc:'6 flats. Rare.',tip:'B natural is unusual here.',pron:'G-flat MAY-jur'},
+  'A Natural Minor':{c:'Minor Keys',notes:['A','B','C','D','E','F','G'],desc:'Relative of C Major.',tip:'Same notes as C, starts on A.',pron:'A NAT-chur-ul MY-nur'},
+  'E Natural Minor':{c:'Minor Keys',notes:['E','Gb','G','A','B','C','D'],desc:'1 sharp (F#).',tip:'Common in folk and rock.',pron:'E NAT-chur-ul MY-nur'},
+  'D Natural Minor':{c:'Minor Keys',notes:['D','E','F','G','A','Bb','C'],desc:'1 flat (Bb). Relative of F.',tip:'Bb is the key flat.',pron:'D NAT-chur-ul MY-nur'},
+  'G Natural Minor':{c:'Minor Keys',notes:['G','A','Bb','C','D','Eb','F'],desc:'2 flats. Dramatic and dark.',tip:'Eb and Bb — watch intonation.',pron:'G NAT-chur-ul MY-nur'},
+  'A Harmonic Minor':{c:'Minor Keys',notes:['A','B','C','D','E','F','Ab'],desc:'Raised 7th (G#). Exotic.',tip:'Augmented 2nd F→G# is the defining sound.',pron:'A har-MON-ik MY-nur'},
+  'D Harmonic Minor':{c:'Minor Keys',notes:['D','E','F','G','A','Bb','Db'],desc:'Raised C# on D.',tip:'Eastern European sound.',pron:'D har-MON-ik MY-nur'},
+  'A Melodic Minor':{c:'Minor Keys',notes:['A','B','C','D','E','Gb','Ab'],desc:'Raised 6th and 7th ascending.',tip:'Classical ascending form for singability.',pron:'A mel-OD-ik MY-nur'},
+  'D Dorian':{c:'Modes',notes:['D','E','F','G','A','B','C'],desc:'Mode 2 of C. Minor + raised 6th.',tip:'"So What" Miles Davis = D Dorian.',pron:'D DOR-ee-un'},
+  'E Phrygian':{c:'Modes',notes:['E','F','G','A','B','C','D'],desc:'Mode 3. Minor + flat 2nd. Spanish.',tip:'E→F half step = the whole character.',pron:'E FRIJ-ee-un'},
+  'F Lydian':{c:'Modes',notes:['F','G','A','B','C','D','E'],desc:'Mode 4. Major + raised 4th.',tip:'Film music wonder/magic = Lydian.',pron:'F LID-ee-un'},
+  'G Mixolydian':{c:'Modes',notes:['G','A','B','C','D','E','F'],desc:'Mode 5. Major + flat 7th.',tip:'Every blues-rock I-VII = Mixolydian.',pron:'G mix-oh-LID-ee-un'},
+  'A Aeolian':{c:'Modes',notes:['A','B','C','D','E','F','G'],desc:'Mode 6. Same as natural minor.',tip:'Aeolian = natural minor. Identical.',pron:'A ay-OH-lee-un'},
+  'B Locrian':{c:'Modes',notes:['B','C','D','E','F','G','A'],desc:'Mode 7. Diminished 5th. Unstable.',tip:'Almost never used melodically.',pron:'B LOW-kree-un'},
+  'C Ionian':{c:'Modes',notes:['C','D','E','F','G','A','B'],desc:'Mode 1. Identical to C Major.',tip:'Ionian = Major.',pron:'C eye-OH-nee-un'},
+  'Phrygian Dom':{c:'Modes',notes:['E','F','Ab','A','B','C','D'],desc:'Phrygian + raised 3rd. Flamenco.',tip:'Used in Middle Eastern and Spanish music.',pron:'FRIJ-ee-un DOM-in-unt'},
+  'Lydian Dom':{c:'Modes',notes:['C','D','E','Gb','G','A','Bb'],desc:'Lydian + flat 7th. Jazz dominant.',tip:'Popular in jazz for dominant chords.',pron:'LID-ee-un DOM-in-unt'},
+  'C Major Pentatonic':{c:'Pentatonic',notes:['C','D','E','G','A'],desc:'5 notes. No half steps.',tip:'Works over almost any chord.',pron:'C MAY-jur pen-tuh-TON-ik'},
+  'A Minor Pentatonic':{c:'Pentatonic',notes:['A','C','D','E','G'],desc:'Minor pentatonic. Rock/blues base.',tip:'Same as C major pentatonic, different root.',pron:'A MY-nur pen-tuh-TON-ik'},
+  'G Major Pentatonic':{c:'Pentatonic',notes:['G','A','B','D','E'],desc:'5-note on G. Country/folk.',tip:'Remove the tension notes F and C.',pron:'G MAY-jur pen-tuh-TON-ik'},
+  'E Minor Pentatonic':{c:'Pentatonic',notes:['E','G','A','B','D'],desc:'Most common rock scale.',tip:'Box 1 = blues-rock foundation.',pron:'E MY-nur pen-tuh-TON-ik'},
+  'Hirajoshi':{c:'Pentatonic',notes:['C','D','Eb','G','Ab'],desc:'Japanese koto scale.',tip:'Two half steps = instant Japanese sound.',pron:'hee-rah-YOH-shee'},
+  'Japanese (In)':{c:'Pentatonic',notes:['D','Eb','G','A','Bb'],desc:'Traditional Japanese In scale.',tip:'Half step at bottom is unmistakably Japanese.',pron:'JAP-uh-neez IN'},
+  'C Blues (Minor)':{c:'Blues',notes:['C','Eb','F','Gb','G','Bb'],desc:'Minor blues. Backbone of rock/jazz.',tip:'Gb is the blue note — lean into it.',pron:'C BLOOZ'},
+  'G Blues (Minor)':{c:'Blues',notes:['G','Bb','C','Db','D','F'],desc:'Blues on G. Most common guitar key.',tip:'Db is the tritone blue note.',pron:'G BLOOZ'},
+  'Bb Blues (Minor)':{c:'Blues',notes:['Bb','Db','Eb','E','F','Ab'],desc:'Concert band jazz staple.',tip:'E natural is the blue note in Bb.',pron:'B-flat BLOOZ'},
+  'C Blues (Major)':{c:'Blues',notes:['C','D','Eb','E','G','A'],desc:'Major blues. Brighter feel.',tip:'Eb against major context = blues tension.',pron:'C MAY-jur BLOOZ'},
+  'C Major Bebop':{c:'Bebop',notes:['C','D','E','F','G','Ab','A','B'],desc:'Major + chromatic passing tone.',tip:'8 notes so chord tones land on beats.',pron:'C MAY-jur BEE-bop'},
+  'G Dom Bebop':{c:'Bebop',notes:['G','A','B','C','D','E','F','Gb'],desc:'Mixolydian + passing tone.',tip:'Charlie Parker and bebop jazz.',pron:'G DOM BEE-bop'},
+  'C Altered':{c:'Jazz',notes:['C','Db','Eb','E','Gb','Ab','Bb'],desc:'All tensions altered. Max tension.',tip:'Play over dominant 7ths resolving to new key.',pron:'C ALL-turd'},
+  'C Half-Whole Dim':{c:'Jazz',notes:['C','Db','Eb','E','Gb','G','A','Bb'],desc:'Half-whole alternating. 8 notes.',tip:'Only 3 distinct diminished scales exist.',pron:'C HALF-hole DIM'},
+  'Whole Tone':{c:'Symmetric',notes:['C','D','E','Gb','Ab','Bb'],desc:'Only whole steps. 6 notes. Debussy.',tip:'Only 2 whole-tone scales exist.',pron:'HOLE tone'},
+  'Augmented':{c:'Symmetric',notes:['C','Eb','E','G','Ab','B'],desc:'Alternating minor 3rds and half steps.',tip:'Used by Coltrane.',pron:'AWG-men-tid'},
+  'Tritone':{c:'Symmetric',notes:['C','Db','E','Gb','G','B'],desc:'Built around tritones. Very dissonant.',tip:'Tritone = "devil in music" historically.',pron:'TRY-tone'},
+  'Hungarian Minor':{c:'Exotic/World',notes:['A','B','C','Eb','E','F','Ab'],desc:'Two augmented 2nds. Eastern European.',tip:'The augmented 2nds = dramatic folk sound.',pron:'HUNG-gair-ee-un MY-nur'},
+  'Persian':{c:'Exotic/World',notes:['C','Db','E','F','Gb','Ab','B'],desc:'Ancient Persian. Snake charmer sound.',tip:'Two augmented 2nds = very exotic.',pron:'PUR-zhun'},
+  'Double Harmonic':{c:'Exotic/World',notes:['C','Db','E','F','G','Ab','B'],desc:'Two augmented 2nds. Gypsy/Arabic.',tip:'Also called Gypsy major.',pron:'DUB-ul HAR-mon-ik'},
+  'Flamenco':{c:'Exotic/World',notes:['E','F','Ab','A','B','C','D'],desc:'Sound of Spanish guitar.',tip:'Phrygian Dominant on E.',pron:'fluh-MENG-ko'},
+  'Neapolitan Major':{c:'Exotic/World',notes:['C','Db','Eb','F','G','A','B'],desc:'Romantic era classical. Lush.',tip:'Db gives a very orchestral feel.',pron:'nee-uh-POL-ih-tun MAY-jur'},
+  'Enigmatic':{c:'Exotic/World',notes:['C','Db','E','Gb','Ab','Bb','B'],desc:'Invented by Verdi. Bizarre.',tip:'Deliberately hard to resolve.',pron:'ih-NIG-mat-ik'},
+  'Prometheus':{c:'Exotic/World',notes:['C','D','E','Gb','A','Bb'],desc:"Scriabin's mystic scale.",tip:'Scriabin wrote a symphony around this.',pron:'pruh-MEE-thee-us'},
+  'Chromatic':{c:'Chromatic',notes:['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'],desc:'All 12 pitches. Ultimate challenge.',tip:'Know every note and fingering.',pron:'kro-MAT-ik'},
+  'Octatonic':{c:'Classical',notes:['C','D','Eb','F','Gb','Ab','A','B'],desc:'Whole-half alternating. Stravinsky.',tip:'Repeats every minor 3rd.',pron:'ok-tuh-TON-ik'},
+  'Messiaen M2':{c:'Classical',notes:['C','Db','Eb','E','Gb','G','A','Bb'],desc:'Messiaen Mode 2. Half-whole.',tip:'Used in Quartet for the End of Time.',pron:'meh-see-AHN'},
+  'Bartók':{c:'Classical',notes:['C','D','Eb','E','Gb','G','Bb','B'],desc:'Béla Bartók. Folk + modern.',tip:'Combines folk scales with chromatic harmony.',pron:'BAR-tok'},
+};
+
+// Staff position data — same as v3
+const LINE_Y=[50,66,82,98,114];
+const TREBLE_Y={'C3':{y:162,ll:[154,146,138,130,122,114],label:'Many ledger lines below'},'D3':{y:158,ll:[154,146,138,130,122,114]},'E3':{y:154,ll:[154,146,138,130,122,114]},'F3':{y:150,ll:[146,138,130,122,114]},'G3':{y:146,ll:[146,138,130,122,114],label:'2nd ledger below'},'Ab3':{y:142,ll:[138,130,122,114]},'A3':{y:138,ll:[138,130,122,114]},'Bb3':{y:134,ll:[130,122,114]},'B3':{y:130,ll:[130,122,114],label:'1st ledger below'},'C4':{y:126,ll:[122,114],label:'Middle C — space below staff'},'Db4':{y:122,ll:[122,114]},'D4':{y:118,ll:[114],label:'Space below staff'},'Eb4':{y:114,ll:[114],label:'On 1st ledger below'},'E4':{y:110,ll:[],label:'Bottom line — E4 (Every)'},'F4':{y:106,ll:[],label:'1st space — F4 (Good)'},'Gb4':{y:103,ll:[]},'G4':{y:99,ll:[],label:'2nd line — G4 (Boy)'},'Ab4':{y:95,ll:[]},'A4':{y:91,ll:[],label:'2nd space — A4 (Does)'},'Bb4':{y:87,ll:[]},'B4':{y:83,ll:[],label:'Middle line — B4 (Fine)'},'C5':{y:79,ll:[],label:'3rd space — C5'},'Db5':{y:76,ll:[]},'D5':{y:72,ll:[],label:'4th line — D5'},'Eb5':{y:68,ll:[]},'E5':{y:64,ll:[],label:'4th space — E5'},'F5':{y:60,ll:[],label:'Top line — F5'},'Gb5':{y:56,ll:[]},'G5':{y:52,ll:[50],label:'Space above top'},'Ab5':{y:48,ll:[50]},'A5':{y:44,ll:[50,36],label:'1st ledger above'},'Bb5':{y:40,ll:[50,36]},'B5':{y:36,ll:[50,36]},'C6':{y:32,ll:[50,36,22]},'D6':{y:28,ll:[50,36,22]}};
+const BASS_Y={'E1':{y:162,ll:[154,146,138,130,122,114]},'F1':{y:158,ll:[154,146,138,130,122,114]},'G1':{y:154,ll:[154,146,138,130,122,114]},'A1':{y:146,ll:[146,138,130,122,114]},'Bb1':{y:142,ll:[138,130,122,114]},'B1':{y:138,ll:[138,130,122,114]},'C2':{y:134,ll:[130,122,114]},'Db2':{y:130,ll:[130,122,114]},'D2':{y:126,ll:[122,114]},'Eb2':{y:122,ll:[122,114],label:'1st ledger below'},'E2':{y:118,ll:[114],label:'Space below staff'},'F2':{y:114,ll:[114],label:'On 1st ledger below'},'Gb2':{y:111,ll:[114]},'G2':{y:107,ll:[],label:'Bottom line — G2'},'Ab2':{y:103,ll:[]},'A2':{y:99,ll:[],label:'1st space — A2'},'Bb2':{y:95,ll:[]},'B2':{y:91,ll:[],label:'2nd line — B2'},'C3':{y:87,ll:[],label:'2nd space — C3'},'Db3':{y:84,ll:[]},'D3':{y:80,ll:[],label:'Middle line — D3'},'Eb3':{y:76,ll:[]},'E3':{y:72,ll:[],label:'4th space — E3'},'F3':{y:68,ll:[],label:'4th line — F3'},'Gb3':{y:65,ll:[]},'G3':{y:61,ll:[],label:'Top space — G3'},'Ab3':{y:58,ll:[]},'A3':{y:54,ll:[],label:'Top line — A3'},'Bb3':{y:50,ll:[]},'B3':{y:46,ll:[]},'C4':{y:42,ll:[36],label:'Middle C — ledger above'},'Db4':{y:39,ll:[36]},'D4':{y:35,ll:[36]},'Eb4':{y:31,ll:[36,22]},'E4':{y:28,ll:[36,22]},'F4':{y:24,ll:[36,22]},'G4':{y:17,ll:[36,22,14]}};
+const ALTO_Y={'F3':{y:114,ll:[],label:'Bottom line — F3'},'G3':{y:106,ll:[],label:'1st space'},'A3':{y:98,ll:[],label:'2nd line'},'Bb3':{y:90,ll:[]},'C4':{y:82,ll:[],label:'Middle line — C4 (middle C)'},'D4':{y:74,ll:[],label:'4th space'},'E4':{y:66,ll:[],label:'4th line'},'F4':{y:58,ll:[],label:'Top space'},'G4':{y:50,ll:[],label:'Top line'},'A4':{y:42,ll:[36]},'Bb4':{y:38,ll:[36]},'B4':{y:34,ll:[36,22]},'C5':{y:26,ll:[36,22,14]}};
+
+function getMap(clef){return clef==='bass'?BASS_Y:clef==='alto'?ALTO_Y:TREBLE_Y;}
+function findY(pitch,clef){
+  const m=getMap(clef);
+  const oct=clef==='bass'?[2,3,4,1]:clef==='alto'?[3,4]:[4,5,3,6];
+  for(const o of oct){const k=pitch+o;if(m[k])return{noteId:k,...m[k]};}
+  for(const[k,v]of Object.entries(m)){if(k.replace(/\d/g,'')===pitch)return{noteId:k,...v};}
+  return null;
+}
+
+const FING={
+  trombone:{'Bb':{pos:[1],tip:'1st position — home base'},'A':{pos:[2],tip:'2nd position'},'Ab':{pos:[3],tip:'3rd position — tends sharp'},'G':{pos:[4],tip:'4th position'},'Gb':{pos:[5],tip:'5th position'},'F':{pos:[6],alt:['T+3'],tip:'6th position — elbow out'},'E':{pos:[7],tip:'7th position — slide ALL the way out'},'Eb':{pos:[3],alt:['T+2'],tip:'3rd position 2nd partial'},'D':{pos:[4],alt:['T+1'],tip:'4th position'},'Db':{pos:[5],tip:'5th position'},'C':{pos:[6],alt:['T+3'],tip:'6th position'},'B':{pos:[7],tip:'7th position'}},
+  valve3:{'C':{v:[0,0,0],desc:'Open'},'B':{v:[0,1,0],desc:'Valve 2'},'Bb':{v:[1,0,0],desc:'Valve 1'},'A':{v:[1,1,0],desc:'Valves 1+2'},'Ab':{v:[0,1,1],desc:'Valves 2+3'},'G':{v:[0,0,1],desc:'Valve 3'},'Gb':{v:[1,0,1],desc:'Valves 1+3'},'F':{v:[1,1,0],desc:'Valves 1+2'},'E':{v:[0,1,1],desc:'Valves 2+3'},'Eb':{v:[1,0,1],desc:'Valves 1+3'},'D':{v:[1,1,0],desc:'Valves 1+2'},'Db':{v:[1,1,1],desc:'All three valves'}},
+  horn:{'C':'Open — 3rd partial','B':'T2','Bb':'T1','A':'T1+2','Ab':'T2+3','G':'T1+3','Gb':'T1+2+3','F':'T1+2 or T3','E':'T2+3','Eb':'T1+2+3','D':'T1+2 (tends flat)','Db':'T1+2+3'},
+  sax:{'C':'Open (no keys)','B':'Side C key','Bb':'Left 1st finger','A':'Left 1+2','Ab':'Left 1+2+3 + G# key','G':'Left 1+2+3','Gb':'Left 1+2+3 + low Bb','F':'Left 1+2+3 + Right 1','E':'Left 1+2+3 + Right 1+2','Eb':'Full stack + C# key','D':'Full stack + Low C','Db':'Full stack + Low B'},
+  clarinet:{'C':'Register key + open','B':'Register + 1st finger','Bb':'Throat Bb','A':'Throat A','Ab':'1+2+3 left + Ab key','G':'1+2+3 left','Gb':'1+2+3 left + side key','F':'1+2+3 left + right 1','E':'1+2+3 left + right 1+2','Eb':'Full stack + Eb key','D':'Full stack + Low D','Db':'Full stack + Low Db'},
+  flute:{'C':'Full stack','B':'Left thumb B key','Bb':'Full stack + Bb thumb','A':'Full stack','Ab':'Full stack + Ab trill','G':'Left 1+2+3 + right 1+2','Gb':'Full stack + Gb key','F':'Left 1+2+3 + right 1','E':'Left 1+2+3','Eb':'Left 1+2+3 + Eb key','D':'Left 1+2','Db':'Left 1+2 + Db key'},
+  oboe:{'C':'Open C + octave key','B':'Half-hole + full left','Bb':'Full left + Bb side','A':'Full left + right 1+2+3','Ab':'Full stack + Ab key','G':'Full left + right 1+2','F':'Left 1+2+3 + right 1','E':'Left 1+2+3','Eb':'Left 1+2+3 + Eb key','D':'Left 1+2','Db':'Left 1 + Db key'},
+  bassoon:{'C':'Whisper key + thumb + 1+2+3','B':'Whisper + full left','Bb':'Full stack + Bb key','A':'Full left + right 1+2+3','Ab':'Full stack + Ab key','G':'Full stack + wing key','F':'Standard F boot','E':'Left 1+2+3 + boot keys','Eb':'Left 1+2+3 + Eb boot','D':'Open D','Db':'Db position'},
+  bowed:{'C':'Cello: open C string','B':'Violin: 2nd finger A string','Bb':'Violin: flat 2nd on A','A':'Violin: open A string','Ab':'Violin: flat 1st on A','G':'Violin: open G string','F':'Violin: 1st finger E string','E':'Violin: open E string','Eb':'Violin: flat 4th on D','D':'Violin: open D string','Db':'Viola/cello flat finger','Gb':'Cello: 4th finger C string'},
+  keys:{'C':'White key (Middle C = C4)','B':'White, just left of C','Bb':'Black key, left group of 3','A':'White key','Ab':'Black key, middle of right 3','G':'White key','Gb':'Black key, right group','F':'White, just right of E','E':'White, left of black 3','Eb':'Black, leftmost of right 3','D':'White, between 2 black keys','Db':'Black, rightmost of left pair'},
+};
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let selInst=null,selScales=new Set();
+let pool=[],cur=null,hist=[],histIdx=-1;
+let selLetter=null,selAcc='';
+let sc=0,sw=0,answered=false;
+let instFam='all',scaleCat='all',guideCat='all';
+
+// ════════════════════════════════════════════════
+// MENU BUILD
+// ════════════════════════════════════════════════
+function buildMenu(){
+  buildInstFilters();buildInstGrid();buildScaleFilters();
+}
+function buildInstFilters(){
+  const fams=[...new Set(Object.values(INSTRUMENTS).map(i=>i.family))];
+  const row=document.getElementById('inst-filters');
+  row.innerHTML='<button class="ftag on" data-fam="all" onclick="setInstFam(\'all\',this)">All</button>';
+  fams.forEach(f=>{const b=document.createElement('button');b.className='ftag';b.dataset.fam=f;b.textContent=f;b.onclick=()=>setInstFam(f,b);row.appendChild(b);});
+}
+function setInstFam(f,btn){instFam=f;document.querySelectorAll('#inst-filters .ftag').forEach(b=>b.classList.toggle('on',b.dataset.fam===f));filterInsts();}
+function buildInstGrid(){
+  const g=document.getElementById('inst-grid');g.innerHTML='';
+  Object.entries(INSTRUMENTS).forEach(([id,d])=>{
+    const b=document.createElement('button');b.className='ibtn';b.dataset.id=id;b.dataset.fam=d.family;b.dataset.name=d.name.toLowerCase();
+    b.innerHTML=`<span class="ii">${d.icon}</span><span>${d.name}</span><span class="ik">${d.key}</span>`;
+    b.onclick=()=>selInstFn(id,b);g.appendChild(b);
+  });
+}
+function filterInsts(){
+  const q=document.getElementById('inst-search').value.toLowerCase();
+  document.querySelectorAll('.ibtn').forEach(b=>{
+    const ok=(instFam==='all'||b.dataset.fam===instFam)&&(!q||b.dataset.name.includes(q)||b.dataset.fam.toLowerCase().includes(q));
+    b.classList.toggle('hidden',!ok);
+  });
+}
+function selInstFn(id,btn){
+  selInst=id;
+  document.querySelectorAll('.ibtn').forEach(b=>b.classList.toggle('sel',b.dataset.id===id));
+  updateStartBtn();buildScaleList();
+}
+function buildScaleFilters(){
+  const row=document.getElementById('scale-filters');
+  row.innerHTML='<button class="ftag on" data-cat="all" onclick="setScaleCat(\'all\',this)">All</button>';
+  Object.keys(SCALE_CATS).forEach(cat=>{const b=document.createElement('button');b.className='ftag';b.dataset.cat=cat;b.textContent=cat;b.onclick=()=>setScaleCat(cat,b);row.appendChild(b);});
+}
+function setScaleCat(cat,btn){scaleCat=cat;document.querySelectorAll('#scale-filters .ftag').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));filterScales();}
+function buildScaleList(){
+  const inst=INSTRUMENTS[selInst];const list=document.getElementById('scale-list');list.innerHTML='';
+  Object.entries(ALL_SCALES).forEach(([name,d])=>{
+    const btn=document.createElement('button');btn.className='sbtn';btn.dataset.name=name.toLowerCase();btn.dataset.cat=d.c;
+    const written=d.notes.slice(0,5).map(n=>transposePitch(n,inst.transpose));
+    const col=SCALE_CATS[d.c]||'#888';
+    btn.innerHTML=`<div class="sbtn-dot" style="background:${col}"></div><div class="sbtn-info"><div class="sbtn-name">${name}</div><div class="sbtn-cat">${d.c} · ${written.join(' ')}</div></div><div class="sbtn-check">✓</div>`;
+    btn.onclick=()=>toggleScale(name,btn);
+    if(selScales.has(name))btn.classList.add('sel');
+    list.appendChild(btn);
+  });
+  updateScaleCount();
+}
+function filterScales(){
+  const q=document.getElementById('scale-search').value.toLowerCase();
+  document.querySelectorAll('.sbtn').forEach(b=>{
+    const ok=(scaleCat==='all'||b.dataset.cat===scaleCat)&&(!q||b.dataset.name.includes(q)||b.dataset.cat.toLowerCase().includes(q));
+    b.classList.toggle('hidden',!ok);
+  });
+}
+function toggleScale(name,btn){
+  if(selScales.has(name)){selScales.delete(name);btn.classList.remove('sel');}
+  else{selScales.add(name);btn.classList.add('sel');}
+  updateScaleCount();updateStartBtn();
+}
+function updateScaleCount(){document.getElementById('scale-count').textContent=selScales.size;}
+function updateStartBtn(){document.getElementById('start-btn').disabled=!selInst||selScales.size===0;}
+
+// ════════════════════════════════════════════════
+// GAME
+// ════════════════════════════════════════════════
+function buildPool(){
+  const inst=INSTRUMENTS[selInst];const pitchSet=new Set();
+  selScales.forEach(s=>ALL_SCALES[s].notes.forEach(n=>pitchSet.add(normalize(n))));
+  const p=[];
+  pitchSet.forEach(concert=>{
+    const written=transposePitch(concert,inst.transpose);
+    const y=findY(written,inst.clef);
+    if(y)p.push({concert,written,clef:inst.clef,...y});
+  });
+  return p;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+
+function startGame(){
+  pool=buildPool();if(!pool.length){alert('No notes found. Try different scales.');return;}
+  shuffle(pool);hist=[];histIdx=-1;sc=0;sw=0;answered=false;
+  document.getElementById('gsc').textContent=0;document.getElementById('gsw').textContent=0;
+  const inst=INSTRUMENTS[selInst];
+  document.getElementById('gbadge').textContent=inst.name+' · '+inst.key;
+  buildAnsUI();showScreen('game');nextNote();
+}
+
+function buildAnsUI(){
+  const nb=document.getElementById('nbtns');nb.innerHTML='';
+  ['C','D','E','F','G','A','B'].forEach(n=>{
+    const b=document.createElement('button');b.className='nbtn';b.textContent=n;b.dataset.n=n;
+    b.onclick=()=>pickLetter(n);nb.appendChild(b);
+  });
+  const ab=document.getElementById('acbtns');ab.innerHTML='';
+  [['♮ Natural',''],['♭ Flat','b'],['♯ Sharp','#']].forEach(([l,v])=>{
+    const b=document.createElement('button');b.className='acbtn'+(v===''?' sel':'');b.textContent=l;b.dataset.v=v;
+    b.onclick=()=>pickAcc(v);ab.appendChild(b);
+  });
+  selAcc='';selLetter=null;
+}
+function pickLetter(n){selLetter=n;document.querySelectorAll('.nbtn').forEach(b=>b.classList.toggle('sel',b.dataset.n===n));updateDisp();}
+function pickAcc(v){selAcc=v;document.querySelectorAll('.acbtn').forEach(b=>b.classList.toggle('sel',b.dataset.v===v));updateDisp();}
+function updateDisp(){
+  const d=document.getElementById('ansdisp');
+  if(!selLetter){d.textContent='—';return;}
+  d.textContent=selLetter+(selAcc==='b'?'♭':selAcc==='#'?'♯':'');
+}
+function resetInput(){
+  selLetter=null;selAcc='';
+  document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('sel','fc','fw'));
+  document.querySelectorAll('.acbtn').forEach(b=>b.classList.toggle('sel',b.dataset.v===''));
+  document.getElementById('ansdisp').textContent='—';
+}
+function nextNote(){
+  histIdx++;
+  if(histIdx>=hist.length){cur=pool[Math.floor(Math.random()*pool.length)];hist.push(cur);}
+  else{cur=hist[histIdx];}
+  answered=false;resetInput();
+  document.getElementById('ipanel').classList.remove('show');
+  document.getElementById('cmsg').style.display='none';
+  document.getElementById('sqlbl').textContent='IDENTIFY THIS NOTE';
+  document.getElementById('replay-btn').style.display='none';
+  document.getElementById('play-btn').style.display='';
+  drawStaff(false,null);updateProg();
+  // Auto-play note after a short delay
+  setTimeout(()=>playCurrentNote(),400);
+}
+function retry(){
+  answered=false;resetInput();
+  document.getElementById('ipanel').classList.remove('show');
+  document.getElementById('cmsg').style.display='none';
+  document.getElementById('sqlbl').textContent='IDENTIFY THIS NOTE';
+  drawStaff(false,null);
+  setTimeout(()=>playCurrentNote(),200);
+}
+async function checkAns(){
+  if(answered){nextNote();return;}
+  if(!selLetter)return;
+  const user=normalize(selLetter+(selAcc==='b'?'b':selAcc==='#'?'#':''));
+  const correct=normalize(cur.written);
+  const match=SEMI.indexOf(user)===SEMI.indexOf(correct);
+  answered=true;
+
+  // Save to Supabase (non-blocking)
+  const scaleName=[...selScales][0]||'Unknown';
+  saveProgress(cur.written, INSTRUMENTS[selInst].name, scaleName, match);
+
+  if(match){
+    sc++;doFlash('c');playCorrect();
+    document.getElementById('cmsg').style.display='block';
+    document.getElementById('sqlbl').textContent=correct+' ✓';
+    document.querySelectorAll('.nbtn').forEach(b=>{if(b.dataset.n===selLetter)b.classList.add('fc');});
+    drawStaff(true,true);
+    document.getElementById('replay-btn').style.display='';
+    document.getElementById('play-btn').style.display='none';
+  } else {
+    sw++;doFlash('w');playWrong();
+    document.getElementById('sqlbl').textContent='Answer: '+correct;
+    document.querySelectorAll('.nbtn').forEach(b=>{if(b.dataset.n===selLetter)b.classList.add('fw');});
+    drawStaff(true,false);showInfo();
+    // Play the correct note so they can hear it
+    setTimeout(()=>playCurrentNote(),500);
+  }
+  document.getElementById('gsc').textContent=sc;
+  document.getElementById('gsw').textContent=sw;
+}
+function doFlash(t){const f=document.getElementById('flash');f.className=t;setTimeout(()=>f.className='',400);}
+function updateProg(){document.getElementById('prog').style.width=Math.min(sc/Math.max(pool.length,1)*100,100)+'%';}
+
+// ════════════════════════════════════════════════
+// STAFF DRAWING
+// ════════════════════════════════════════════════
+function se(svg,ns,tag,attrs){const el=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));return el;}
+function drawStaff(reveal,correct){
+  const svg=document.getElementById('staff-svg');svg.innerHTML='';
+  const ns='http://www.w3.org/2000/svg';const W=760;
+  svg.appendChild(se(svg,ns,'rect',{x:0,y:0,width:W,height:200,fill:'#090b10'}));
+  const x1=95,x2=W-55;
+  const lineLabels=cur.clef==='bass'?['G2','B2','D3','F3','A3']:cur.clef==='alto'?['F3','A3','C4','E4','G4']:['E4','G4','B4','D5','F5'];
+  const spaceLabels=cur.clef==='bass'?['A2','C3','E3','G3']:cur.clef==='alto'?['G3','B3','D4','F4']:['F4','A4','C5','E5'];
+  LINE_Y.forEach((y,i)=>{
+    svg.appendChild(se(svg,ns,'line',{x1,y1:y,x2,y2:y,stroke:'#2d3a50','stroke-width':1.5}));
+    const t=document.createElementNS(ns,'text');t.setAttribute('x',x2+4);t.setAttribute('y',y+4);
+    t.setAttribute('font-size','8');t.setAttribute('fill','#2a3548');t.setAttribute('font-family','Fira Code,monospace');
+    t.textContent=lineLabels[i];svg.appendChild(t);
+  });
+  [107,91,75,59].forEach((y,i)=>{
+    const t=document.createElementNS(ns,'text');t.setAttribute('x',x2+4);t.setAttribute('y',y+4);
+    t.setAttribute('font-size','8');t.setAttribute('fill','#1e2836');t.setAttribute('font-family','Fira Code,monospace');
+    t.textContent=spaceLabels[i];svg.appendChild(t);
+  });
+  // Clef
+  if(cur.clef==='treble'){const c=document.createElementNS(ns,'text');c.setAttribute('x','16');c.setAttribute('y','116');c.setAttribute('font-size','95');c.setAttribute('fill','#3a4a60');c.setAttribute('font-family','serif');c.textContent='𝄞';svg.appendChild(c);}
+  else if(cur.clef==='bass'){const c=document.createElementNS(ns,'text');c.setAttribute('x','18');c.setAttribute('y','95');c.setAttribute('font-size','78');c.setAttribute('fill','#3a4a60');c.setAttribute('font-family','serif');c.textContent='𝄢';svg.appendChild(c);}
+  else{const c=document.createElementNS(ns,'text');c.setAttribute('x','16');c.setAttribute('y','102');c.setAttribute('font-size','78');c.setAttribute('fill','#3a4a60');c.setAttribute('font-family','serif');c.textContent='𝄡';svg.appendChild(c);}
+
+  const nx=360,ny=cur.y;
+  const onLine=LINE_Y.some(y=>Math.abs(y-ny)<5);
+  if(onLine){const nl=LINE_Y.find(y=>Math.abs(y-ny)<5);svg.appendChild(se(svg,ns,'rect',{x:nx-44,y:nl-10,width:88,height:20,fill:'rgba(110,231,247,0.04)'}));}
+  else{svg.appendChild(se(svg,ns,'rect',{x:nx-44,y:ny-9,width:88,height:18,fill:'rgba(110,231,247,0.04)'}));}
+  (cur.ll||[]).forEach(ly=>svg.appendChild(se(svg,ns,'line',{x1:nx-20,y1:ly,x2:nx+20,y2:ly,stroke:'#3d4f68','stroke-width':1.5})));
+  svg.appendChild(se(svg,ns,'line',{x1:nx,y1:Math.max(ny,50),x2:nx,y2:165,stroke:'rgba(110,231,247,0.06)','stroke-width':1,'stroke-dasharray':'3,4'}));
+  if(cur.label){const t=document.createElementNS(ns,'text');t.setAttribute('x',nx);t.setAttribute('y',182);t.setAttribute('font-size','9');t.setAttribute('fill','rgba(110,231,247,0.3)');t.setAttribute('text-anchor','middle');t.setAttribute('font-family','Fira Code,monospace');t.textContent=cur.label;svg.appendChild(t);}
+  // Mini staff indicator
+  const mx=705,mw=14,scY=y=>30+(y-20)*(150/155);
+  LINE_Y.forEach(y=>svg.appendChild(se(svg,ns,'line',{x1:mx,y1:scY(y),x2:mx+mw,y2:scY(y),stroke:'#1e2a3a','stroke-width':1})));
+  const mny=scY(ny);
+  const mc=document.createElementNS(ns,'circle');mc.setAttribute('cx',mx+mw/2);mc.setAttribute('cy',mny);mc.setAttribute('r','4');mc.setAttribute('fill','#6ee7f7');svg.appendChild(mc);
+  svg.appendChild(se(svg,ns,'line',{x1:mx-5,y1:mny,x2:mx-1,y2:mny,stroke:'#6ee7f7','stroke-width':1}));
+
+  if(!reveal){
+    svg.appendChild(se(svg,ns,'ellipse',{cx:nx,cy:ny,rx:13,ry:9,fill:'none',stroke:'#6ee7f7','stroke-width':2,transform:`rotate(-15,${nx},${ny})`}));
+    const q=document.createElementNS(ns,'text');q.setAttribute('x',nx);q.setAttribute('y',ny+5);q.setAttribute('font-size','13');q.setAttribute('fill','#6ee7f7');q.setAttribute('text-anchor','middle');q.setAttribute('font-weight','bold');q.setAttribute('font-family','Fira Code,monospace');q.textContent='?';svg.appendChild(q);
+  } else {
+    const col=correct?'#4fffb0':'#ff6b6b';
+    svg.appendChild(se(svg,ns,'ellipse',{cx:nx,cy:ny,rx:12,ry:8,fill:col,transform:`rotate(-15,${nx},${ny})`}));
+    const up=ny>82;
+    svg.appendChild(se(svg,ns,'line',{x1:up?nx+10:nx-10,y1:ny,x2:up?nx+10:nx-10,y2:ny+(up?-44:44),stroke:col,'stroke-width':2}));
+    if(cur.written.includes('b')){const acc=document.createElementNS(ns,'text');acc.setAttribute('x',nx-22);acc.setAttribute('y',ny+6);acc.setAttribute('font-size','20');acc.setAttribute('fill',col);acc.setAttribute('font-family','serif');acc.textContent='♭';svg.appendChild(acc);}
+    const nl=document.createElementNS(ns,'text');nl.setAttribute('x',nx);nl.setAttribute('y',ny-(up?48:12)-8);nl.setAttribute('font-size','14');nl.setAttribute('fill',col);nl.setAttribute('text-anchor','middle');nl.setAttribute('font-family','Unbounded,sans-serif');nl.setAttribute('font-weight','700');nl.textContent=cur.written;svg.appendChild(nl);
+  }
+}
+
+// ════════════════════════════════════════════════
+// INFO PANEL
+// ════════════════════════════════════════════════
+function showInfo(){
+  const inst=INSTRUMENTS[selInst];const ft=inst.ft;const pitch=normalize(cur.concert);
+  document.getElementById('ipanel').classList.add('show');
+  document.getElementById('iptitle').textContent=`${cur.written} written · ${cur.concert} concert`;
+  let fh='';
+  if(ft==='trombone'){const d=FING.trombone[pitch];if(d){const dots=[];for(let i=1;i<=7;i++)dots.push(`<div class="fdot${d.pos.includes(i)?' on':''}">${i}</div>`);(d.alt||[]).forEach(a=>dots.push(`<div class="fdot on tag">${a}</div>`));fh=`<div class="frow">${dots.join('')}</div><p style="font-size:10px;color:var(--muted);margin-top:4px">${d.tip}</p>`;}}
+  else if(ft==='valve3'){const d=FING.valve3[pitch];if(d){const dots=d.v.map((v,i)=>`<div class="fdot${v?' on':''}">${i+1}</div>`).join('');fh=`<div class="frow">${dots}</div><p style="font-size:10px;color:var(--muted);margin-top:4px">${d.desc}</p>`;}}
+  else{const fm={horn:FING.horn,sax:FING.sax,clarinet:FING.clarinet,flute:FING.flute,oboe:FING.oboe,bassoon:FING.bassoon,bowed:FING.bowed,keys:FING.keys};const fd=(fm[ft]||{})[pitch];if(fd)fh=`<p>${fd}</p>`;}
+  const sc2=[...selScales].filter(s=>ALL_SCALES[s].notes.map(n=>normalize(n)).includes(pitch)).join(', ');
+  const onLine=LINE_Y.some(y=>Math.abs(y-cur.y)<5);
+  document.getElementById('ipcols').innerHTML=`
+    <div class="ipc"><label>Fingering/Position</label>${fh||'<p>See your method book.</p>'}</div>
+    <div class="ipc"><label>Written Note</label><p style="font-size:26px;font-family:'Unbounded',sans-serif;font-weight:900;color:var(--gold)">${cur.written}</p><p style="font-size:9px;color:var(--muted)">Concert: ${cur.concert}</p></div>
+    <div class="ipc"><label>In These Scales</label><p>${sc2||'—'}</p></div>
+    <div class="ipc"><label>Instrument</label><p style="font-size:10px">${inst.desc}</p></div>`;
+  document.getElementById('iphint').innerHTML=`<strong>Staff:</strong> ${cur.label||cur.noteId} · ${onLine?'ON a staff line':'IN a space'}<br><strong>Clef:</strong> ${inst.clef==='treble'?'Lines: E G B D F · Spaces: F A C E':inst.clef==='alto'?'Middle line = C4 (middle C)':'Lines: G B D F A · Spaces: A C E G'}<br><strong>Tip:</strong> ${ALL_SCALES[[...selScales][0]]?.tip||'Count from the bottom line.'}`;
+}
+
+// ════════════════════════════════════════════════
+// GUIDE
+// ════════════════════════════════════════════════
+function showGuide(){
+  if(!document.getElementById('guide-grid').children.length) buildGuideCards();
+  buildGuideFilterRow();
+  showScreen('guide');
+}
+function buildGuideFilterRow(){
+  const row=document.getElementById('guide-filter-row');row.innerHTML='';
+  const b0=document.createElement('button');b0.className='ftag on';b0.dataset.cat='all';b0.textContent='All';b0.onclick=()=>setGuideCat('all',b0);row.appendChild(b0);
+  Object.keys(SCALE_CATS).forEach(cat=>{const b=document.createElement('button');b.className='ftag';b.dataset.cat=cat;b.textContent=cat;b.onclick=()=>setGuideCat(cat,b);row.appendChild(b);});
+}
+function setGuideCat(cat,btn){guideCat=cat;document.querySelectorAll('#guide-filter-row .ftag').forEach(b=>b.classList.toggle('on',b.dataset.cat===cat));filterGuide();}
+function buildGuideCards(){
+  const g=document.getElementById('guide-grid');g.innerHTML='';
+  Object.entries(ALL_SCALES).forEach(([name,d])=>{
+    const col=SCALE_CATS[d.c]||'#888';
+    const card=document.createElement('div');card.className='gcard';card.style.borderTopColor=col;
+    card.dataset.name=name.toLowerCase();card.dataset.cat=d.c;card.dataset.notes=(d.notes||[]).join(' ').toLowerCase();
+    const pills=(d.notes||[]).map(n=>`<span class="gpill">${n}</span>`).join('');
+    const pron=d.pron?`<div style="font-size:8px;color:var(--purple);margin-bottom:5px;letter-spacing:0.1em">🔊 ${d.pron}</div>`:'';
+    card.innerHTML=`<div class="gcat-tag">${d.c}</div><h3 style="color:${col}">${name}</h3>${pron}<div class="gpills">${pills}</div><p>${d.desc}</p><div class="gtip"><strong>Tip:</strong> ${d.tip||'Practice slowly.'}</div>`;
+    g.appendChild(card);
+  });
+}
+function filterGuide(){
+  const q=document.getElementById('guide-search').value.toLowerCase();
+  document.querySelectorAll('.gcard').forEach(c=>{
+    const ok=(guideCat==='all'||c.dataset.cat===guideCat)&&(!q||c.dataset.name.includes(q)||c.dataset.cat.toLowerCase().includes(q)||c.dataset.notes.includes(q));
+    c.classList.toggle('hidden',!ok);
+  });
+}
+
+// ════════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════════
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function goMenu(){showScreen('menu');}
+
+// ════════════════════════════════════════════════
+// INIT — check existing session
+// ════════════════════════════════════════════════
+document.getElementById('loading').style.display='flex';
+(async()=>{
+  const {data:{session}} = await sb.auth.getSession();
+  document.getElementById('loading').style.display='none';
+  if(session?.user){
+    await afterLogin(session.user);
+  } else {
+    showScreen('auth');
+  }
+  buildMenu();
+})();
+
+// Listen for auth changes
+sb.auth.onAuthStateChange(async(event,session)=>{
+  if(event==='SIGNED_IN'&&session){
+    await afterLogin(session.user);
+  } else if(event==='SIGNED_OUT'){
+    showScreen('auth');
+  }
+});
+</script>
+</body>
+</html>
