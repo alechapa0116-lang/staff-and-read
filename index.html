@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Staff & Read — Band Note Trainer</title>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg:#07080c;--surface:#0e0f18;--card:#131520;--card2:#181b2c;
@@ -554,7 +554,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
 // ═══════════════════════════════════════════════════
 const SURL='https://qyumftwevfkivvdnqtbd.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5dW1mdHdldmZraXZ2ZG5xdGJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDExNTIsImV4cCI6MjA5MDQ3NzE1Mn0.SADrHz1AUhWsT8HX4TF0-AtBFlbI8PQwn1phYvY1FM0';
-const sb=supabase.createClient(SURL,SKEY);
+const sb=supabase.createClient(SURL,SKEY,{
+  auth:{
+    storageKey:'sar-v5-auth',        // unique key — prevents lock conflicts with old versions
+    autoRefreshToken:true,
+    persistSession:true,
+    detectSessionInUrl:false
+  }
+});
 let CU=null,CUN='';
 
 // ═══════════════════════════════════════════════════
@@ -1256,13 +1263,29 @@ function goBack(){showScreen(prevScreen||'dash');}
 // INIT
 // ═══════════════════════════════════════════════════
 document.getElementById('loading').style.display='flex';
-(async()=>{
-  const{data:{session}}=await sb.auth.getSession();
+
+// Safety timeout — never spin forever
+const _lt=setTimeout(()=>{
   document.getElementById('loading').style.display='none';
-  if(session?.user){await afterLogin(session.user);}
-  else showScreen('auth');
+  showScreen('auth');buildMenu();buildDIY();
+},5000);
+
+(async()=>{
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    clearTimeout(_lt);
+    document.getElementById('loading').style.display='none';
+    if(session?.user)await afterLogin(session.user);
+    else showScreen('auth');
+  }catch(e){
+    clearTimeout(_lt);
+    document.getElementById('loading').style.display='none';
+    showScreen('auth');
+    console.warn('Supabase init error:',e);
+  }
   buildMenu();buildDIY();
 })();
+
 sb.auth.onAuthStateChange(async(ev,session)=>{
   if(ev==='SIGNED_IN'&&session)await afterLogin(session.user);
   else if(ev==='SIGNED_OUT')showScreen('auth');
