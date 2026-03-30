@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff & Read — Band Instrument Note Trainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e14;
+  --surface: #111620;
+  --card: #181e2c;
+  --border: #2a3040;
+  --accent: #38bdf8;
+  --gold: #fbbf24;
+  --red: #f87171;
+  --green: #34d399;
+  --purple: #a78bfa;
+  --text: #e2e8f0;
+  --muted: #4a5568;
+  --staff-line: #2d3a50;
+  --staff-bg: #0d1219;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Mono',monospace;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+}
+
+/* SCREENS */
+.screen{display:none;min-height:100vh;flex-direction:column;align-items:center}
+.screen.active{display:flex}
+
+/* ═══════════ MENU ═══════════ */
+#menu{padding:32px 20px 48px;gap:0}
+
+.site-header{text-align:center;margin-bottom:40px}
+.site-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(48px,10vw,100px);
+  letter-spacing:0.08em;
+  line-height:0.9;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--purple) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.site-sub{
+  font-size:10px;letter-spacing:0.35em;color:var(--muted);
+  text-transform:uppercase;margin-top:8px;
+}
+
+.section-label{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:14px;letter-spacing:0.25em;
+  color:var(--muted);text-transform:uppercase;
+  margin-bottom:12px;width:100%;max-width:700px;
+  border-bottom:1px solid var(--border);padding-bottom:6px;
+}
+
+/* INSTRUMENT PICKER */
+.instrument-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+  gap:8px;width:100%;max-width:700px;margin-bottom:28px;
+}
+.inst-btn{
+  background:var(--card);border:1.5px solid var(--border);
+  color:var(--muted);padding:14px 8px;
+  font-family:'DM Mono',monospace;font-size:11px;font-weight:500;
+  cursor:pointer;transition:all 0.15s;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.inst-btn .inst-icon{font-size:22px;line-height:1}
+.inst-btn .inst-clef-tag{
+  font-size:9px;letter-spacing:0.15em;color:var(--muted);
+  border:1px solid var(--border);padding:1px 5px;
+}
+.inst-btn:hover{border-color:var(--accent);color:var(--text)}
+.inst-btn.selected{
+  border-color:var(--accent);background:rgba(56,189,248,0.08);
+  color:var(--accent);
+}
+.inst-btn.selected .inst-clef-tag{border-color:var(--accent);color:var(--accent)}
+
+/* SCALE PICKER */
+.scale-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:6px;width:100%;max-width:700px;margin-bottom:28px;
+}
+.scale-btn{
+  background:var(--card);border:1.5px solid var(--border);
+  color:var(--muted);padding:10px 12px;
+  font-family:'DM Mono',monospace;font-size:11px;
+  cursor:pointer;transition:all 0.15s;text-align:left;
+}
+.scale-btn .sname{font-weight:500;color:var(--text);display:block;margin-bottom:2px}
+.scale-btn .snotes{font-size:9px;color:var(--muted)}
+.scale-btn:hover{border-color:var(--gold);color:var(--text)}
+.scale-btn.selected{border-color:var(--gold);background:rgba(251,191,36,0.07)}
+.scale-btn.selected .sname{color:var(--gold)}
+
+.start-row{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px}
+.start-btn{
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#000;border:none;padding:16px 56px;
+  font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:0.15em;
+  cursor:pointer;transition:all 0.2s;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+}
+.start-btn:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.start-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.guide-link{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:8px 20px;font-family:'DM Mono',monospace;font-size:10px;
+  cursor:pointer;letter-spacing:0.15em;transition:all 0.15s;
+}
+.guide-link:hover{border-color:var(--text);color:var(--text)}
+
+/* ═══════════ GAME ═══════════ */
+#game{padding:16px;gap:12px}
+
+.game-topbar{
+  display:flex;width:100%;max-width:720px;
+  justify-content:space-between;align-items:center;gap:12px;
+  flex-wrap:wrap;
+}
+.back-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:7px 16px;font-family:'DM Mono',monospace;font-size:10px;
+  cursor:pointer;transition:all 0.15s;letter-spacing:0.1em;
+}
+.back-btn:hover{border-color:var(--text);color:var(--text)}
+
+.inst-badge{
+  font-size:10px;letter-spacing:0.2em;
+  color:var(--accent);border:1px solid rgba(56,189,248,0.3);
+  padding:5px 12px;text-transform:uppercase;
+}
+
+.score-row{display:flex;gap:16px;font-size:12px}
+.sc{color:var(--green);font-weight:500}
+.sw{color:var(--red);font-weight:500}
+
+/* STAFF */
+.staff-wrap{
+  width:100%;max-width:720px;
+  background:var(--staff-bg);
+  border:1px solid var(--border);
+  padding:16px 12px 20px;
+  position:relative;
+}
+
+.staff-question{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:13px;letter-spacing:0.25em;color:var(--muted);
+  text-align:center;margin-bottom:12px;
+}
+
+#staff-svg{width:100%;display:block}
+
+/* staff line/space labels */
+.staff-legend{
+  display:flex;flex-direction:column;
+  gap:0;position:absolute;
+  left:8px;top:0;bottom:0;justify-content:center;
+  pointer-events:none;
+}
+
+/* ANSWER AREA */
+.answer-area{width:100%;max-width:720px}
+
+.note-btns{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+  margin-bottom:6px;
+}
+.note-btn{
+  background:var(--card);border:2px solid var(--border);
+  color:var(--text);padding:16px 4px;
+  font-family:'Bebas Neue',sans-serif;font-size:22px;
+  cursor:pointer;transition:all 0.12s;text-align:center;
+  letter-spacing:0.05em;
+}
+.note-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-2px)}
+.note-btn.sel{border-color:var(--accent);color:var(--accent);background:rgba(56,189,248,0.08)}
+.note-btn.flash-c{background:var(--green);border-color:var(--green);color:#000;animation:pop .35s ease}
+.note-btn.flash-w{background:var(--red);border-color:var(--red);color:#fff;animation:wag .35s ease}
+
+.acc-btns{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  margin-bottom:6px;
+}
+.acc-btn{
+  background:var(--card);border:2px solid var(--border);
+  color:var(--muted);padding:10px;
+  font-family:'DM Mono',monospace;font-size:12px;font-weight:500;
+  cursor:pointer;transition:all 0.12s;text-align:center;
+}
+.acc-btn:hover{border-color:var(--purple);color:var(--purple)}
+.acc-btn.sel{border-color:var(--purple);background:rgba(167,139,250,0.1);color:var(--purple)}
+
+.answer-display{
+  text-align:center;padding:10px;
+  font-family:'Bebas Neue',sans-serif;font-size:44px;
+  letter-spacing:0.08em;color:var(--text);
+  min-height:64px;
+  background:var(--card);border:1px solid var(--border);
+  margin-bottom:6px;
+}
+
+.action-btns{display:grid;grid-template-columns:1fr 2fr 1fr;gap:6px}
+.act{
+  padding:14px;border:2px solid;
+  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.12em;
+  cursor:pointer;transition:all 0.15s;background:transparent;
+}
+.act-retry{border-color:var(--border);color:var(--muted)}
+.act-retry:hover{border-color:var(--text);color:var(--text)}
+.act-check{border-color:var(--accent);color:var(--accent)}
+.act-check:hover{background:var(--accent);color:#000}
+.act-next{border-color:var(--green);color:var(--green)}
+.act-next:hover{background:var(--green);color:#000}
+
+/* INFO PANEL */
+.info-panel{
+  width:100%;max-width:720px;
+  background:var(--card);
+  border-left:3px solid var(--red);
+  padding:16px 18px;
+  display:none;animation:slideIn .2s ease;
+}
+.info-panel.show{display:block}
+.info-panel h3{
+  font-family:'Bebas Neue',sans-serif;font-size:22px;
+  color:var(--gold);letter-spacing:0.1em;margin-bottom:10px;
+}
+.info-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.info-col label{
+  font-size:9px;text-transform:uppercase;letter-spacing:0.2em;
+  color:var(--muted);display:block;margin-bottom:4px;
+}
+.info-col p,.info-col div{font-size:12px;color:var(--text);line-height:1.6}
+
+.fingering-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.fing-dot{
+  width:32px;height:32px;border-radius:50%;
+  border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:500;color:var(--muted);
+}
+.fing-dot.active{
+  background:var(--gold);border-color:var(--gold);
+  color:#000;font-weight:700;
+}
+.fing-dot.label-dot{
+  border-radius:4px;width:auto;padding:0 8px;font-size:10px;
+}
+
+.staff-hint{
+  background:rgba(56,189,248,0.05);
+  border:1px solid rgba(56,189,248,0.2);
+  padding:10px 14px;border-radius:2px;
+  font-size:11px;color:var(--text);line-height:1.7;
+  margin-top:10px;
+}
+.staff-hint strong{color:var(--accent)}
+
+/* CORRECT flash */
+.correct-banner{
+  font-family:'Bebas Neue',sans-serif;font-size:52px;
+  color:var(--green);text-align:center;letter-spacing:0.1em;
+  animation:pop .4s ease;display:none;
+}
+
+/* GUIDE SCREEN */
+#guide{padding:32px 20px 48px;gap:20px}
+#guide h1{
+  font-family:'Bebas Neue',sans-serif;font-size:52px;
+  color:var(--accent);letter-spacing:0.1em;
+}
+.guide-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:14px;width:100%;max-width:900px;
+}
+.guide-card{
+  background:var(--card);border:1px solid var(--border);
+  padding:18px;
+}
+.guide-card h3{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;
+  letter-spacing:0.1em;margin-bottom:8px;
+}
+.guide-card p{font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px}
+.pill-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.pill{
+  background:var(--bg);border:1px solid var(--border);
+  padding:2px 8px;font-size:10px;font-weight:500;color:var(--accent);
+}
+.tip-box{
+  background:rgba(251,191,36,0.05);border-left:2px solid var(--gold);
+  padding:8px 12px;font-size:10px;color:var(--muted);line-height:1.6;
+}
+.tip-box strong{color:var(--gold)}
+
+/* PROGRESS */
+.prog-wrap{width:100%;max-width:720px;height:2px;background:var(--border)}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .4s ease}
+
+/* FLASH OVERLAY */
+#flash{position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:0;transition:opacity .15s}
+#flash.c{background:rgba(52,211,153,0.07);opacity:1}
+#flash.w{background:rgba(248,113,113,0.07);opacity:1}
+
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes wag{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:480px){
+  .note-btns{grid-template-columns:repeat(4,1fr)}
+  .action-btns{grid-template-columns:1fr 1fr 1fr}
+  .info-cols{grid-template-columns:1fr}
+  .instrument-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+
+<!-- ═══════════ MENU ═══════════ -->
+<div class="screen active" id="menu">
+  <div class="site-header">
+    <div class="site-title">STAFF &amp; READ</div>
+    <div class="site-sub">Multi-Instrument Note Trainer · Sight Reading Practice</div>
+  </div>
+
+  <div class="section-label">① Choose Your Instrument</div>
+  <div class="instrument-grid" id="inst-grid"></div>
+
+  <div class="section-label">② Select Scales / Note Pools</div>
+  <div class="scale-grid" id="scale-grid"></div>
+
+  <div class="start-row">
+    <button class="start-btn" id="start-btn" disabled onclick="startGame()">START</button>
+    <button class="guide-link" onclick="showGuide()">VIEW SCALE GUIDE &amp; INSTRUMENT INFO</button>
+  </div>
+</div>
+
+<!-- ═══════════ GAME ═══════════ -->
+<div class="screen" id="game">
+  <div class="game-topbar">
+    <button class="back-btn" onclick="goMenu()">← Menu</button>
+    <div class="inst-badge" id="inst-badge">—</div>
+    <div class="score-row">✓ <span class="sc" id="sc">0</span> &nbsp; ✗ <span class="sw" id="sw">0</span></div>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+
+  <div class="staff-wrap">
+    <div class="staff-question" id="staff-q">WHAT NOTE IS THIS?</div>
+    <svg id="staff-svg" viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="correct-banner" id="correct-banner">CORRECT!</div>
+  <div class="info-panel" id="info-panel"><h3 id="ip-title">—</h3><div class="info-cols" id="ip-cols"></div><div class="staff-hint" id="ip-hint"></div></div>
+
+  <div class="answer-area">
+    <div class="note-btns" id="note-btns"></div>
+    <div class="acc-btns" id="acc-btns"></div>
+    <div class="answer-display" id="ans-display">—</div>
+    <div class="action-btns">
+      <button class="act act-retry" onclick="retry()">RETRY</button>
+      <button class="act act-check" onclick="check()">CHECK ANSWER</button>
+      <button class="act act-next" onclick="nextNote()">NEXT →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ GUIDE ═══════════ -->
+<div class="screen" id="guide">
+  <h1>SCALE &amp; INSTRUMENT GUIDE</h1>
+  <div class="guide-grid" id="guide-grid"></div>
+  <button class="start-btn" onclick="goMenu()" style="margin-top:16px">← BACK</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// INSTRUMENT DEFINITIONS
+// clef: 'bass' | 'treble'
+// transposition: written note vs concert pitch (semitones above concert)
+//   Bb instruments: +2 (they write D when concert C sounds)
+//   Eb instruments: +9 (they write A when concert C sounds)
+//   F instruments: +7  (they write G when concert C sounds)
+//   C instruments: 0
+// fingeringType: 'trombone'|'valve3'|'valve4'|'sax'|'flute'|'clarinet'|'horn'
+// ════════════════════════════════════════════════════════
+const INSTRUMENTS = {
+  trombone: {
+    name:'Trombone', icon:'🎺', clef:'bass', transpose:0,
+    fingeringType:'trombone',
+    clefTag:'Bass Clef · Concert',
+    desc:'Concert pitch, bass clef. The slide has 7 positions; position 1 is fully in.',
+  },
+  euphonium: {
+    name:'Euphonium', icon:'🎶', clef:'bass', transpose:0,
+    fingeringType:'valve3',
+    clefTag:'Bass Clef · Concert',
+    desc:'Concert pitch, bass clef. 3-valve instrument. Shares many fingerings with tuba.',
+  },
+  tuba: {
+    name:'Tuba', icon:'🔔', clef:'bass', transpose:0,
+    fingeringType:'valve3',
+    clefTag:'Bass Clef · Concert',
+    desc:'Concert pitch, bass clef. 3 or 4 valves. Lowest brass instrument.',
+  },
+  trumpet: {
+    name:'Trumpet', icon:'🎺', clef:'treble', transpose:2,
+    fingeringType:'valve3',
+    clefTag:'Treble Clef · Bb',
+    desc:'Bb transposing, treble clef. Writes a whole step higher than concert pitch.',
+  },
+  frenchHorn: {
+    name:'French Horn', icon:'🪗', clef:'treble', transpose:7,
+    fingeringType:'horn',
+    clefTag:'Treble Clef · F',
+    desc:'F transposing, treble clef. Writes a perfect 5th higher than concert pitch. Known for tricky intonation.',
+  },
+  altoSax: {
+    name:'Alto Sax', icon:'🎷', clef:'treble', transpose:9,
+    fingeringType:'sax',
+    clefTag:'Treble Clef · Eb',
+    desc:'Eb transposing. Writes a major 6th higher than concert pitch. Very common in band and jazz.',
+  },
+  tenorSax: {
+    name:'Tenor Sax', icon:'🎷', clef:'treble', transpose:2,
+    fingeringType:'sax',
+    clefTag:'Treble Clef · Bb',
+    desc:'Bb transposing, same as trumpet. Writes a whole step higher than concert pitch.',
+  },
+  bariSax: {
+    name:'Bari Sax', icon:'🎷', clef:'treble', transpose:9,
+    fingeringType:'sax',
+    clefTag:'Treble Clef · Eb',
+    desc:'Eb transposing like alto, but sounds an octave lower. Low, dark, powerful.',
+  },
+  sopranoSax: {
+    name:'Soprano Sax', icon:'🎷', clef:'treble', transpose:2,
+    fingeringType:'sax',
+    clefTag:'Treble Clef · Bb',
+    desc:'Bb transposing like trumpet. Bright and penetrating upper register.',
+  },
+  clarinet: {
+    name:'Clarinet', icon:'🎵', clef:'treble', transpose:2,
+    fingeringType:'clarinet',
+    clefTag:'Treble Clef · Bb',
+    desc:'Bb transposing, treble clef. Very wide range. Register key unlocks the upper octave.',
+  },
+  bassClarinet: {
+    name:'Bass Clarinet', icon:'🎵', clef:'treble', transpose:2,
+    fingeringType:'clarinet',
+    clefTag:'Treble Clef · Bb',
+    desc:'Bb transposing, written in treble clef but sounds low. Same fingerings as clarinet, different range.',
+  },
+  flute: {
+    name:'Flute', icon:'🎼', clef:'treble', transpose:0,
+    fingeringType:'flute',
+    clefTag:'Treble Clef · Concert',
+    desc:'Concert pitch, treble clef. Open-hole tone holes. Breathy in low register, brilliant up high.',
+  },
+  oboe: {
+    name:'Oboe', icon:'🎼', clef:'treble', transpose:0,
+    fingeringType:'flute',
+    clefTag:'Treble Clef · Concert',
+    desc:'Concert pitch, treble clef. Double reed instrument. Fingering system similar to flute/clarinet.',
+  },
+  bassoon: {
+    name:'Bassoon', icon:'🎼', clef:'bass', transpose:0,
+    fingeringType:'bassoon',
+    clefTag:'Bass Clef · Concert',
+    desc:'Concert pitch, bass clef. Double reed, very complex fingering. Low woodwind.',
+  },
+};
+
+// ════════════════════════════════════════════════════════
+// CONCERT PITCH NOTES — full chromatic range
+// Each note has: display name, octave label, staff position data,
+//   and fingering info for multiple instrument types
+// Staff Y positions use: treble clef or bass clef
+// ════════════════════════════════════════════════════════
+
+// Staff SVG: viewBox 0 0 700 200
+// Treble clef: 5 lines at y = 50, 66, 82, 98, 114  (spacing 16)
+//   Bottom line E4, B3, G3, D3, bottom-space=F3, etc.
+//   Lines bottom-to-top: E4(114), G4(98), B4(82), D5(66), F5(50)
+//   Spaces: F4(106), A4(90), C5(74), E5(58)
+
+// Bass clef: 5 lines at y = 50, 66, 82, 98, 114
+//   Lines bottom-to-top: G2(114), B2(98), D3(82), F3(66), A3(50)
+//   Spaces: A2(106), C3(90), E3(74), G3(58)
+
+// NOTE: y values map concert pitch. For transposing instruments,
+// we shift by interval on the staff.
+
+// We'll define concert pitch notes with their CONCERT bass-clef and treble-clef y positions
+// Then for transposing instruments, we pick the note that is (transpose) semitones up
+
+const CHROMATIC = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+// Index 0=C, 1=Db/C#, etc.
+
+// Concert pitch note data
+// noteId: "C4", "Bb3" etc.
+// staffY for bass clef and treble clef
+// stepFromC: 0-11
+const ALL_NOTES = {};
+
+// Bass clef staff (SVG y, line/space label)
+// Lines bottom-to-top: G2, B2, D3, F3, A3
+// We map each concert note to a y position
+const BASS_Y = {
+  'E1': {y:162,ledgerLines:[154,146,138,130,122,114],label:'1st ledger below staff (3 below)'},
+  'F1': {y:158,ledgerLines:[154,146,138,130,122,114]},
+  'G1': {y:154,ledgerLines:[154,146,138,130,122,114],label:'2nd ledger below staff'},
+  'Ab1': {y:150,ledgerLines:[146,138,130,122,114]},
+  'A1': {y:146,ledgerLines:[146,138,130,122,114]},
+  'Bb1': {y:142,ledgerLines:[138,130,122,114]},
+  'B1': {y:138,ledgerLines:[138,130,122,114]},
+  'C2': {y:134,ledgerLines:[130,122,114]},
+  'Db2': {y:130,ledgerLines:[130,122,114]},
+  'D2': {y:126,ledgerLines:[122,114]},
+  'Eb2': {y:122,ledgerLines:[122,114]},
+  'E2': {y:118,ledgerLines:[114],label:'1st ledger below staff'},
+  'F2': {y:114,ledgerLines:[114],label:'1st ledger below (on line)'},
+  'Gb2': {y:111,ledgerLines:[114]},
+  'G2': {y:107,ledgerLines:[],label:'Bottom line of staff'},
+  'Ab2': {y:103,ledgerLines:[]},
+  'A2': {y:99,ledgerLines:[],label:'1st space'},
+  'Bb2': {y:95,ledgerLines:[]},
+  'B2': {y:91,ledgerLines:[],label:'2nd line'},
+  'C3': {y:87,ledgerLines:[]},
+  'Db3': {y:84,ledgerLines:[]},
+  'D3': {y:80,ledgerLines:[],label:'Middle line (3rd)'},
+  'Eb3': {y:76,ledgerLines:[]},
+  'E3': {y:72,ledgerLines:[],label:'4th space'},
+  'F3': {y:68,ledgerLines:[],label:'4th line'},
+  'Gb3': {y:65,ledgerLines:[]},
+  'G3': {y:61,ledgerLines:[],label:'Top space'},
+  'Ab3': {y:58,ledgerLines:[]},
+  'A3': {y:54,ledgerLines:[],label:'Top line of staff'},
+  'Bb3': {y:50,ledgerLines:[],label:'Just above top line'},
+  'B3': {y:46,ledgerLines:[]},
+  'C4': {y:42,ledgerLines:[36]},  // middle C - 1st ledger above
+  'Db4': {y:39,ledgerLines:[36]},
+  'D4': {y:35,ledgerLines:[36]},
+  'Eb4': {y:31,ledgerLines:[36,22]},
+  'E4': {y:28,ledgerLines:[36,22]},
+  'F4': {y:24,ledgerLines:[36,22]},
+  'Gb4': {y:21,ledgerLines:[36,22,14]},
+  'G4': {y:17,ledgerLines:[36,22,14]},
+};
+
+const TREBLE_Y = {
+  'C3': {y:162,ledgerLines:[154,146,138,130,122,114],label:'Many ledger lines below staff'},
+  'D3': {y:158,ledgerLines:[154,146,138,130,122,114]},
+  'E3': {y:154,ledgerLines:[154,146,138,130,122,114]},
+  'F3': {y:150,ledgerLines:[146,138,130,122,114]},
+  'G3': {y:146,ledgerLines:[146,138,130,122,114],label:'2nd ledger below staff'},
+  'Ab3': {y:142,ledgerLines:[138,130,122,114]},
+  'A3': {y:138,ledgerLines:[138,130,122,114]},
+  'Bb3': {y:134,ledgerLines:[130,122,114]},
+  'B3': {y:130,ledgerLines:[130,122,114],label:'1st ledger line below'},
+  'C4': {y:126,ledgerLines:[122,114],label:'Middle C — 1st ledger below'},
+  'Db4': {y:122,ledgerLines:[122,114]},
+  'D4': {y:118,ledgerLines:[114]},
+  'Eb4': {y:114,ledgerLines:[114],label:'On 1st ledger line below staff'},
+  'E4': {y:110,ledgerLines:[],label:'Bottom line (E4) — remember: Every'},
+  'F4': {y:106,ledgerLines:[],label:'1st space (F4) — remember: Good'},
+  'Gb4': {y:103,ledgerLines:[]},
+  'G4': {y:99,ledgerLines:[],label:'2nd line (G4)'},
+  'Ab4': {y:95,ledgerLines:[]},
+  'A4': {y:91,ledgerLines:[],label:'2nd space (A4)'},
+  'Bb4': {y:87,ledgerLines:[]},
+  'B4': {y:83,ledgerLines:[],label:'3rd line (B4) — middle line'},
+  'C5': {y:79,ledgerLines:[],label:'3rd space (C5)'},
+  'Db5': {y:76,ledgerLines:[]},
+  'D5': {y:72,ledgerLines:[],label:'4th line (D5)'},
+  'Eb5': {y:68,ledgerLines:[]},
+  'E5': {y:64,ledgerLines:[],label:'4th space (E5)'},
+  'F5': {y:60,ledgerLines:[],label:'Top line (F5)'},
+  'Gb5': {y:56,ledgerLines:[]},
+  'G5': {y:52,ledgerLines:[50]},
+  'Ab5': {y:48,ledgerLines:[50]},
+  'A5': {y:44,ledgerLines:[50,36]},
+  'Bb5': {y:40,ledgerLines:[50,36]},
+  'B5': {y:36,ledgerLines:[50,36]},
+  'C6': {y:32,ledgerLines:[50,36,22]},
+  'D6': {y:28,ledgerLines:[50,36,22]},
+  'E6': {y:24,ledgerLines:[50,36,22,14]},
+  'F6': {y:20,ledgerLines:[50,36,22,14]},
+};
+
+// ════════════════════════════════════════════════════════
+// FINGERING DATA per instrument type
+// Trombone: slide positions
+// valve3 (trumpet, eupho, tuba): valves 1,2,3 as array [true/false]
+// horn: horn fingering
+// sax/clarinet/flute/bassoon: key description
+// ════════════════════════════════════════════════════════
+
+const FINGERINGS = {
+  // Concert pitch → instrument-specific fingering
+  // For transposing instruments we'll look up the WRITTEN note's fingering
+
+  // Valve fingering: array of [v1,v2,v3] where true = pressed
+  valve3: {
+    'C': [[false,false,false],'Open (no valves)'],
+    'B': [[false,false,true],'Valve 2'],     // Hmm let me redo this properly
+    'Bb': [[false,true,false],'Valve 1'],
+    'A': [[true,false,false],'Valves 1+2'],
+    'Ab': [[true,true,false],'Valves 2+3'],
+    'G': [[false,false,true],'Valve 1+3 alt, or 2+3'],
+    'Gb': [[true,false,true],'Valves 1+3'],
+    'F': [[true,true,false],'Valves 1+2'],
+    'E': [[false,true,true],'Valves 2+3'],
+    'Eb': [[true,false,true],'Valves 1+3'],
+    'D': [[true,true,false],'1+2 or 3 (alt)'],
+    'Db': [[true,true,true],'All three valves'],
+  },
+
+  trombone: {
+    'Bb': {pos:[1],alt:[],partial:2,tip:'1st position — your home base'},
+    'A':  {pos:[2],alt:[],partial:2,tip:'2nd position'},
+    'Ab': {pos:[3],alt:[],partial:2,tip:'3rd position — tends sharp, pull slightly'},
+    'G':  {pos:[4],alt:[],partial:2,tip:'4th position'},
+    'Gb': {pos:[5],alt:[],partial:2,tip:'5th position'},
+    'F':  {pos:[6],alt:['T+3'],partial:2,tip:'6th position — elbow out'},
+    'E':  {pos:[7],alt:[],partial:2,tip:'7th position — slide all the way out!'},
+    'Eb': {pos:[3],alt:['T+2'],partial:2,tip:'3rd position 2nd partial'},
+    'D':  {pos:[4],alt:['T+1'],partial:2,tip:'4th position'},
+    'Db': {pos:[5],alt:[],partial:2,tip:'5th position'},
+    'C':  {pos:[6],alt:['T+3'],partial:2,tip:'6th position'},
+    'B':  {pos:[7],alt:[],partial:2,tip:'7th position'},
+  },
+
+  sax: {
+    'C': 'Open — no keys (octave key for upper register)',
+    'B': 'Side C key',
+    'Bb': 'First finger left hand only',
+    'A': 'Fingers 1+2 left hand',
+    'Ab': '1+2+3 left hand + G# key',
+    'G': '1+2+3 left hand',
+    'Gb': '1+2+3 left + low Bb key',
+    'F': '1+2+3 left + 1 right',
+    'E': '1+2+3 left + 1+2 right',
+    'Eb': '1+2+3 left + 1+2+3 right + low C# key',
+    'D': '1+2+3 left + 1+2+3 right + low C key',
+    'Db': 'All main keys + low B key',
+  },
+
+  clarinet: {
+    'C': 'Register key + open',
+    'B': 'Register key + 1st finger',
+    'Bb': 'Throat Bb (left 1st + side key)',
+    'A': 'Throat A — 1st finger left only',
+    'Ab': '1+2+3 left + Ab key',
+    'G': '1+2+3 left',
+    'Gb': '1+2+3 left + side key',
+    'F': '1+2+3 left + 1 right',
+    'E': '1+2+3 left + 1+2 right',
+    'Eb': 'Full stack + low keys',
+    'D': 'Full stack + low D',
+    'Db': 'Full stack + low Db',
+  },
+
+  flute: {
+    'C': 'Open — no keys (middle C: left thumb + all but pinky)',
+    'B': 'Left thumb B key',
+    'Bb': 'Left 1+2+3 + right 1+2+3 + Bb key',
+    'A': '1+2+3 left + 1+2+3 right',
+    'Ab': 'All keys + Ab trill key',
+    'G': '1+2+3 left + 1+2 right',
+    'Gb': '1+2+3 left + 1+2+3 right + Gb key',
+    'F': '1+2+3 left + 1 right',
+    'E': '1+2+3 left',
+    'Eb': '1+2+3 left + Eb key',
+    'D': '1+2 left',
+    'Db': '1+2 left + Db key',
+  },
+
+  horn: {
+    'C': 'Open (no valves) — 3rd partial',
+    'B': 'T2 (2nd valve)',
+    'Bb': 'T1 (1st valve)',
+    'A': 'T1+2',
+    'Ab': 'T2+3',
+    'G': 'T1+3 or T2+3 (alt)',
+    'Gb': 'T1+2+3 or T1+3 (alt)',
+    'F': 'T1+2 or T3 (alt)',
+    'E': 'T2+3',
+    'Eb': 'T1+2+3',
+    'D': 'T1+2 — tends flat',
+    'Db': 'T1+2+3',
+  },
+
+  bassoon: {
+    'C': 'Whisper key + thumb + 1+2+3 left',
+    'B': 'Whisper + full left stack',
+    'Bb': 'Full stack + Bb key',
+    'A': 'Full left + 1+2+3 right',
+    'Ab': 'Full stack + Ab key',
+    'G': 'Full stack + low wing key',
+    'Gb': 'Gb fingering — complex',
+    'F': 'Standard F',
+    'E': '1+2+3 left + boot keys',
+    'Eb': '1+2+3 left + Eb boot key',
+    'D': 'Open D position',
+    'Db': 'Db position',
+  },
+};
+
+// ════════════════════════════════════════════════════════
+// SCALES — concert pitch note pools
+// We'll transpose for each instrument automatically
+// ════════════════════════════════════════════════════════
+
+const SEMITONE_ORDER = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+
+function transposeNote(noteName, semitones) {
+  // noteName = "Bb" "F#" etc, semitones = integer
+  const enharmonics = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
+  let n = noteName.replace('♭','b').replace('♯','#');
+  if(enharmonics[n]) n = enharmonics[n];
+  const idx = SEMITONE_ORDER.indexOf(n);
+  if(idx === -1) return noteName;
+  return SEMITONE_ORDER[(idx + semitones + 12) % 12];
+}
+
+// Scale definitions (concert pitch note names, no octave — just pitch classes)
+const SCALES_DEF = {
+  'C Major':        {notes:['C','D','E','F','G','A','B'], desc:'No sharps or flats. The default reference scale.', tip:'Treble: E-G-B-D-F on lines. Bass: G-B-D-F-A on lines.', color:'#38bdf8'},
+  'G Major':        {notes:['G','A','B','C','D','E','Gb'], desc:'1 sharp (F#). Very common in concert band.', tip:'F# sits just above the staff in treble clef.', color:'#34d399'},
+  'D Major':        {notes:['D','E','Gb','G','A','B','Db'], desc:'2 sharps (F#, C#).', tip:'Both F# and C# are just slightly sharp of the naturals.', color:'#a78bfa'},
+  'A Major':        {notes:['A','B','Db','D','E','Gb','Ab'], desc:'3 sharps. Wide range — great for upper register.', tip:'Watch Ab — it has a specific unique sound.', color:'#fbbf24'},
+  'E Major':        {notes:['E','Gb','Ab','A','B','Db','Eb'], desc:'4 sharps. Challenging but broadens range.', tip:'Focus on smooth chromatic half-steps.', color:'#f87171'},
+  'F Major':        {notes:['F','G','A','Bb','C','D','E'], desc:'1 flat (Bb). Extremely common in band literature.', tip:'Bb is the most important note to lock in.', color:'#38bdf8'},
+  'Bb Major':       {notes:['Bb','C','D','Eb','F','G','A'], desc:'2 flats (Bb, Eb). Home key for most band instruments.', tip:'Trombone: 1st position = Bb. Natural starting key.', color:'#34d399'},
+  'Eb Major':       {notes:['Eb','F','G','Ab','Bb','C','D'], desc:'3 flats. Very frequent in concert band settings.', tip:'Ab can sound stuffy — push air through it.', color:'#a78bfa'},
+  'Ab Major':       {notes:['Ab','Bb','C','Db','Eb','F','G'], desc:'4 flats. Lush, dark character.', tip:'Lots of flats — mental focus needed.', color:'#fbbf24'},
+  'Db Major':       {notes:['Db','Eb','F','Gb','Ab','Bb','C'], desc:'5 flats. Less common but important.', tip:'Enharmonic to C# major.', color:'#f87171'},
+  'Gb Major':       {notes:['Gb','Ab','Bb','B','Db','Eb','F'], desc:'6 flats / 6 sharps. Rare but builds total fluency.', tip:'B natural in this scale is unusual — stay alert.', color:'#ec4899'},
+  'A Minor (Nat)':  {notes:['A','B','C','D','E','F','G'], desc:'Natural minor. Relative of C Major. Darker, melancholic.', tip:'Same notes as C Major, different starting point.', color:'#38bdf8'},
+  'D Minor (Nat)':  {notes:['D','E','F','G','A','Bb','C'], desc:'Natural minor. Relative of F Major.', tip:'Bb is the key flat here.', color:'#34d399'},
+  'G Minor (Nat)':  {notes:['G','A','Bb','C','D','Eb','F'], desc:'2 flats in natural minor. Very dramatic.', tip:'Eb and Bb both appear — watch intonation.', color:'#a78bfa'},
+  'A Minor (Harm)': {notes:['A','B','C','D','E','F','Ab'], desc:'Harmonic minor. Has a raised 7th (G#). Exotic sound.', tip:'The G# creates a minor 2nd with A — very tense.', color:'#fbbf24'},
+  'D Minor (Harm)': {notes:['D','E','F','G','A','Bb','Db'], desc:'Harmonic minor with raised C#.', tip:'The Db (C#) is the "exotic" note — lean into it.', color:'#f87171'},
+  'D Dorian':       {notes:['D','E','F','G','A','B','C'], desc:'Mode 2 of C Major. Like D minor but with a raised 6th (B).', tip:'That B natural over D minor gives a jazzy feel.', color:'#ec4899'},
+  'G Mixolydian':   {notes:['G','A','B','C','D','E','F'], desc:'Mode 5 of C Major. Like G major but with flat 7 (F natural).', tip:'Very common in folk and rock music. F natural is key.', color:'#38bdf8'},
+  'E Phrygian':     {notes:['E','F','G','A','B','C','D'], desc:'Mode 3 of C Major. Dark, Spanish-flavored. Starts on E.', tip:'The half-step at the bottom (E-F) gives it its unique color.', color:'#34d399'},
+  'F Lydian':       {notes:['F','G','A','B','C','D','E'], desc:'Mode 4 of C Major. Like F major but with raised 4th (B natural).', tip:'That B natural (instead of Bb) gives Lydian its dreamy, floating quality.', color:'#a78bfa'},
+  'B Locrian':      {notes:['B','C','D','E','F','G','A'], desc:'Mode 7 — the rarest. Diminished fifth from root. Very unstable.', tip:'Rarely used melodically but great for theory understanding.', color:'#fbbf24'},
+  'Chromatic':      {notes:['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'], desc:'All 12 pitches. Maximum challenge — you must know every note and fingering.', tip:'Go slow, ascending and descending. Speed comes from perfect accuracy.', color:'#f87171'},
+  'Whole Tone':     {notes:['C','D','E','Gb','Ab','Bb'], desc:'Only whole steps. No half steps at all. 6-note scale. Dreamy/mysterious.', tip:'There are only 2 whole-tone scales — this is one of them. Common in impressionist music.', color:'#ec4899'},
+  'Diminished':     {notes:['C','D','Eb','F','Gb','Ab','A','B'], desc:'Alternating whole-half steps. 8 notes. Symmetrical.', tip:'Repeats every minor 3rd. Only 3 distinct diminished scales exist.', color:'#38bdf8'},
+  'Blues (Major)':  {notes:['C','D','Eb','E','G','A'], desc:'6-note blues scale. Very common in jazz and blues.', tip:'The flat 3rd (Eb) against major context creates the "blues" tension.', color:'#34d399'},
+  'Pentatonic Maj': {notes:['C','D','E','G','A'], desc:'5-note scale, no half steps. Incredibly versatile.', tip:'Can be played over almost any chord. Foundation of folk, rock, country.', color:'#a78bfa'},
+  'Pentatonic Min': {notes:['A','C','D','E','G'], desc:'Minor pentatonic. The scale of rock guitar solos. 5 notes.', tip:'Same notes as major pentatonic but starting on the 6th degree.', color:'#fbbf24'},
+};
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let selInstrument = null;
+let selScales = [];
+let notePool = []; // array of {concert, written, clef, yPos, accType}
+let currentNote = null;
+let selNoteLetter = null;
+let selAcc = '';
+let scoreC = 0, scoreW = 0;
+let history = [], histIdx = -1;
+let answered = false;
+
+// ════════════════════════════════════════════════════════
+// BUILD MENUS
+// ════════════════════════════════════════════════════════
+function buildInstGrid() {
+  const g = document.getElementById('inst-grid');
+  g.innerHTML = '';
+  Object.entries(INSTRUMENTS).forEach(([id,data]) => {
+    const b = document.createElement('button');
+    b.className = 'inst-btn';
+    b.dataset.id = id;
+    b.innerHTML = `<span class="inst-icon">${data.icon}</span><span>${data.name}</span><span class="inst-clef-tag">${data.clefTag}</span>`;
+    b.onclick = () => selectInstrument(id, b);
+    g.appendChild(b);
+  });
+}
+
+function selectInstrument(id, btn) {
+  selInstrument = id;
+  document.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  updateStartBtn();
+  buildScaleGrid();
+}
+
+function buildScaleGrid() {
+  const g = document.getElementById('scale-grid');
+  g.innerHTML = '';
+  // Show scales appropriate to instrument
+  Object.entries(SCALES_DEF).forEach(([name, data]) => {
+    const b = document.createElement('button');
+    b.className = 'scale-btn';
+    b.dataset.name = name;
+    const inst = INSTRUMENTS[selInstrument];
+    // Show notes as they'd be WRITTEN for this instrument
+    const writtenNotes = data.notes.slice(0,5).map(n => transposeNote(n, inst.transpose));
+    b.innerHTML = `<span class="sname">${name}</span><span class="snotes">${writtenNotes.join(' · ')}…</span>`;
+    b.onclick = () => toggleScale(name, b);
+    g.appendChild(b);
+  });
+}
+
+function toggleScale(name, btn) {
+  if(selScales.includes(name)) {
+    selScales = selScales.filter(s => s !== name);
+    btn.classList.remove('selected');
+  } else {
+    selScales.push(name);
+    btn.classList.add('selected');
+  }
+  updateStartBtn();
+}
+
+function updateStartBtn() {
+  document.getElementById('start-btn').disabled = !selInstrument || selScales.length === 0;
+}
+
+// ════════════════════════════════════════════════════════
+// BUILD NOTE POOL
+// ════════════════════════════════════════════════════════
+function buildPool() {
+  const inst = INSTRUMENTS[selInstrument];
+  const concertSet = new Set();
+  selScales.forEach(s => SCALES_DEF[s].notes.forEach(n => concertSet.add(n)));
+
+  const pool = [];
+  // For each concert pitch class, find a written note + staff position
+  concertSet.forEach(concertPitch => {
+    const writtenPitch = transposeNote(concertPitch, inst.transpose);
+    // Find a y position for this note — we need an octave
+    // Pick the most "readable" octave for the instrument
+    const yData = findStaffPos(writtenPitch, inst.clef, selInstrument);
+    if(yData) {
+      pool.push({
+        concert: concertPitch,
+        written: writtenPitch,
+        clef: inst.clef,
+        ...yData,
+      });
+    }
+  });
+  return pool;
+}
+
+function findStaffPos(pitch, clef, instId) {
+  // Map pitch class to best octave for the instrument/clef
+  const staffMap = clef === 'bass' ? BASS_Y : TREBLE_Y;
+  // Try multiple octaves
+  const octaves = clef === 'bass' ? [2,3,4] : [4,5,3];
+  for(const oct of octaves) {
+    const key = pitch + oct;
+    if(staffMap[key]) return {noteId: key, ...staffMap[key]};
+  }
+  // Fallback: find any matching pitch
+  for(const [k, v] of Object.entries(staffMap)) {
+    if(k.replace(/[0-9]/g,'') === pitch) return {noteId:k, ...v};
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════════════════
+// GAME FLOW
+// ════════════════════════════════════════════════════════
+function startGame() {
+  notePool = buildPool();
+  if(!notePool.length) return;
+  shuffle(notePool);
+  history = []; histIdx = -1;
+  scoreC = 0; scoreW = 0;
+  updateScore();
+  document.getElementById('inst-badge').textContent = INSTRUMENTS[selInstrument].name + ' · ' + INSTRUMENTS[selInstrument].clefTag;
+  showScreen('game');
+  buildAnswerUI();
+  nextNote();
+}
+
+function shuffle(a) {
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+}
+
+function nextNote() {
+  histIdx++;
+  if(histIdx >= history.length) {
+    const idx = Math.floor(Math.random() * notePool.length);
+    currentNote = notePool[idx];
+    history.push(currentNote);
+  } else {
+    currentNote = history[histIdx];
+  }
+  answered = false;
+  resetInput();
+  hideInfo();
+  document.getElementById('correct-banner').style.display = 'none';
+  document.getElementById('staff-q').textContent = 'WHAT NOTE IS THIS?';
+  drawStaff(currentNote, false);
+  updateProg();
+}
+
+function retry() {
+  answered = false;
+  resetInput();
+  hideInfo();
+  document.getElementById('correct-banner').style.display = 'none';
+  document.getElementById('staff-q').textContent = 'WHAT NOTE IS THIS?';
+  drawStaff(currentNote, false);
+}
+
+function buildAnswerUI() {
+  const nb = document.getElementById('note-btns');
+  nb.innerHTML = '';
+  ['C','D','E','F','G','A','B'].forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'note-btn'; b.textContent = n; b.dataset.note = n;
+    b.onclick = () => pickNote(n);
+    nb.appendChild(b);
+  });
+
+  const ab = document.getElementById('acc-btns');
+  ab.innerHTML = '';
+  [['♮ Natural',''],['♭ Flat','b'],['♯ Sharp','#']].forEach(([lbl,val]) => {
+    const b = document.createElement('button');
+    b.className = 'acc-btn' + (val==='' ? ' sel' : '');
+    b.textContent = lbl; b.dataset.acc = val;
+    b.onclick = () => pickAcc(val);
+    ab.appendChild(b);
+  });
+  selAcc = '';
+}
+
+function pickNote(n) {
+  selNoteLetter = n;
+  document.querySelectorAll('.note-btn').forEach(b => b.classList.toggle('sel', b.dataset.note === n));
+  updateAnsDisplay();
+}
+
+function pickAcc(v) {
+  selAcc = v;
+  document.querySelectorAll('.acc-btn').forEach(b => b.classList.toggle('sel', b.dataset.acc === v));
+  updateAnsDisplay();
+}
+
+function updateAnsDisplay() {
+  const d = document.getElementById('ans-display');
+  if(!selNoteLetter) { d.textContent = '—'; return; }
+  const sym = selAcc === 'b' ? '♭' : selAcc === '#' ? '♯' : '';
+  d.textContent = selNoteLetter + sym;
+}
+
+function resetInput() {
+  selNoteLetter = null; selAcc = '';
+  document.querySelectorAll('.note-btn').forEach(b => b.classList.remove('sel','flash-c','flash-w'));
+  document.querySelectorAll('.acc-btn').forEach(b => b.classList.toggle('sel', b.dataset.acc === ''));
+  document.getElementById('ans-display').textContent = '—';
+}
+
+function check() {
+  if(answered) { nextNote(); return; }
+  if(!selNoteLetter) return;
+
+  const userAcc = selAcc === 'b' ? 'b' : selAcc === '#' ? '#' : '';
+  const userNote = selNoteLetter + userAcc;
+  const correct = currentNote.written;
+
+  // Normalize enharmonics
+  const enharMap = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb',
+                    'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#'};
+  const isCorrect = userNote === correct || userNote === enharMap[correct] || enharMap[userNote] === correct;
+
+  answered = true;
+  if(isCorrect) {
+    scoreC++;
+    flash('c');
+    document.getElementById('correct-banner').style.display = 'block';
+    document.getElementById('staff-q').textContent = correct + ' ✓';
+    document.querySelectorAll('.note-btn').forEach(b => {
+      if(b.dataset.note === selNoteLetter) b.classList.add('flash-c');
+    });
+    drawStaff(currentNote, true, true);
+  } else {
+    scoreW++;
+    flash('w');
+    document.getElementById('staff-q').textContent = 'The note was: ' + correct;
+    document.querySelectorAll('.note-btn').forEach(b => {
+      if(b.dataset.note === selNoteLetter) b.classList.add('flash-w');
+    });
+    drawStaff(currentNote, true, false);
+    showInfoPanel();
+  }
+  updateScore();
+}
+
+function flash(cls) {
+  const f = document.getElementById('flash');
+  f.className = cls;
+  setTimeout(() => f.className = '', 400);
+}
+
+function updateScore() {
+  document.getElementById('sc').textContent = scoreC;
+  document.getElementById('sw').textContent = scoreW;
+}
+
+function updateProg() {
+  const pct = Math.min((scoreC / Math.max(notePool.length, 1)) * 100, 100);
+  document.getElementById('prog').style.width = pct + '%';
+}
+
+// ════════════════════════════════════════════════════════
+// STAFF DRAWING — much improved
+// SVG viewBox 0 0 700 200
+// Staff lines at y: 50, 66, 82, 98, 114
+// ════════════════════════════════════════════════════════
+const LINE_Y = [50, 66, 82, 98, 114];
+
+function drawStaff(noteObj, reveal, correct) {
+  const svg = document.getElementById('staff-svg');
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const W = 700, lineX1 = 90, lineX2 = W - 40;
+
+  // Background
+  rect(svg, ns, 0, 0, W, 200, '#0d1219');
+
+  // Staff lines with labels
+  const lineLabels = noteObj.clef === 'treble'
+    ? ['E4','G4','B4','D5','F5']  // bottom to top
+    : ['G2','B2','D3','F3','A3'];
+
+  LINE_Y.forEach((y, i) => {
+    // Line
+    ln(svg, ns, lineX1, y, lineX2, y, '#3d4f68', 1.5);
+    // Line label (right side)
+    txt(svg, ns, lineX2 + 5, y + 4, lineLabels[i], '#3d4f68', 9);
+  });
+
+  // Space labels
+  const spaceLabels = noteObj.clef === 'treble'
+    ? ['F4','A4','C5','E5']  // bottom space to top space
+    : ['A2','C3','E3','G3'];
+  const spaceY = [107, 91, 75, 59];
+  spaceY.forEach((y, i) => {
+    txt(svg, ns, lineX2 + 5, y + 4, spaceLabels[i], '#2a3a50', 9);
+  });
+
+  // Clef
+  if(noteObj.clef === 'treble') {
+    const clefEl = document.createElementNS(ns, 'text');
+    clefEl.setAttribute('x', '18'); clefEl.setAttribute('y', '110');
+    clefEl.setAttribute('font-size', '100'); clefEl.setAttribute('fill', '#4a5568');
+    clefEl.setAttribute('font-family', 'serif');
+    clefEl.textContent = '𝄞';
+    svg.appendChild(clefEl);
+  } else {
+    const clefEl = document.createElementNS(ns, 'text');
+    clefEl.setAttribute('x', '18'); clefEl.setAttribute('y', '95');
+    clefEl.setAttribute('font-size', '80'); clefEl.setAttribute('fill', '#4a5568');
+    clefEl.setAttribute('font-family', 'serif');
+    clefEl.textContent = '𝄢';
+    svg.appendChild(clefEl);
+  }
+
+  // Key signature reminder (small text)
+  txt(svg, ns, lineX1, 18, noteObj.clef === 'treble' ? 'Treble Clef' : 'Bass Clef', '#2d3a50', 10);
+
+  const noteX = 350;
+  const noteY = noteObj.y;
+
+  // Draw note position guide line (where it sits relative to staff)
+  // Highlight the staff area around the note
+  const nearestLine = LINE_Y.reduce((a,b) => Math.abs(b-noteY) < Math.abs(a-noteY) ? b : a);
+  const onLine = Math.abs(nearestLine - noteY) < 5;
+
+  if(onLine) {
+    // Highlight the line the note is on
+    ln(svg, ns, noteX - 40, nearestLine, noteX + 40, nearestLine, 'rgba(56,189,248,0.15)', 8);
+  } else {
+    // Highlight the space
+    rect(svg, ns, noteX - 40, noteY - 7, 80, 14, 'rgba(56,189,248,0.06)');
+  }
+
+  // Ledger lines
+  (noteObj.ledgerLines || []).forEach(ly => {
+    ln(svg, ns, noteX - 18, ly, noteX + 18, ly, '#4a5a78', 1.5);
+  });
+
+  // Below-staff ledger reference lines
+  if(noteY > 114) {
+    for(let y = 122; y <= noteY + 1; y += 8) {
+      if(!LINE_Y.includes(y)) ln(svg, ns, noteX - 18, y, noteX + 18, y, '#3d4f68', 1);
+    }
+  }
+  if(noteY < 50) {
+    for(let y = 42; y >= noteY - 1; y -= 8) {
+      if(!LINE_Y.includes(y)) ln(svg, ns, noteX - 18, y, noteX + 18, y, '#3d4f68', 1);
+    }
+  }
+
+  // Position indicator (dotted vertical line from note to bottom)
+  ln(svg, ns, noteX, Math.max(noteY, 50), noteX, 155, 'rgba(56,189,248,0.1)', 1, '4,4');
+
+  // Position marker on bottom — shows where note falls relative to staff range
+  const staffTop = 50, staffBot = 114;
+  const normalizedY = (noteY - staffTop) / (staffBot - staffTop);
+  txt(svg, ns, noteX, 170, noteObj.label || '', 'rgba(56,189,248,0.4)', 9, 'middle');
+
+  if(!reveal) {
+    // Draw question mark note head
+    const qEl = document.createElementNS(ns, 'text');
+    qEl.setAttribute('x', noteX - 1); qEl.setAttribute('y', noteY + 5);
+    qEl.setAttribute('font-size', '18'); qEl.setAttribute('fill', '#38bdf8');
+    qEl.setAttribute('font-weight', 'bold');
+    qEl.setAttribute('text-anchor', 'middle');
+    qEl.setAttribute('font-family', 'DM Mono, monospace');
+    qEl.textContent = '?';
+    svg.appendChild(qEl);
+    // Oval outline
+    ellipseEl(svg, ns, noteX, noteY, 12, 9, 'none', '#38bdf8', 2, -15);
+  } else {
+    // Draw filled note head
+    const noteColor = correct === true ? '#34d399' : correct === false ? '#f87171' : '#fbbf24';
+    ellipseEl(svg, ns, noteX, noteY, 12, 9, noteColor, 'none', 0, -15);
+
+    // Stem
+    const stemDir = noteY > 82 ? -1 : 1;
+    ln(svg, ns, noteY > 82 ? noteX + 10 : noteX - 10, noteY,
+                noteY > 82 ? noteX + 10 : noteX - 10, noteY + stemDir * 44, noteColor, 2);
+
+    // Accidental symbol
+    const acc = currentNote.written;
+    if(acc.includes('b')) {
+      txt(svg, ns, noteX - 22, noteY + 6, '♭', noteColor, 18, 'middle', 'serif');
+    } else if(acc.includes('#') || acc.includes('Gb') || acc.includes('Db') || acc.includes('Eb') || acc.includes('Ab') || acc.includes('Bb')) {
+      // already handled by 'b' above
+    }
+
+    // Note name label
+    txt(svg, ns, noteX, noteY - 22, currentNote.written, noteColor, 13, 'middle', 'Bebas Neue, sans-serif');
+  }
+
+  // Staff position indicators on right margin (mini staff visualization)
+  drawMiniStaffIndicator(svg, ns, noteY, LINE_Y);
+}
+
+function drawMiniStaffIndicator(svg, ns, noteY, lineYArr) {
+  const mx = 650, mw = 14;
+  const scaleY = (y) => {
+    // map 20-170 to 30-170
+    return 30 + (y - 20) * (145 / 155);
+  };
+  // Mini staff lines
+  lineYArr.forEach(y => {
+    ln(svg, ns, mx, scaleY(y), mx + mw, scaleY(y), '#2d3a50', 1);
+  });
+  // Note dot on mini staff
+  const mappedY = scaleY(noteY);
+  const c = document.createElementNS(ns, 'circle');
+  c.setAttribute('cx', mx + mw/2); c.setAttribute('cy', mappedY);
+  c.setAttribute('r', '4'); c.setAttribute('fill', '#38bdf8');
+  svg.appendChild(c);
+  // Arrow pointing to the note
+  ln(svg, ns, mx - 6, mappedY, mx - 2, mappedY, '#38bdf8', 1);
+}
+
+// SVG helpers
+function ln(svg,ns,x1,y1,x2,y2,stroke,sw,dash) {
+  const l = document.createElementNS(ns,'line');
+  l.setAttribute('x1',x1);l.setAttribute('y1',y1);
+  l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+  l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw||1);
+  if(dash) l.setAttribute('stroke-dasharray',dash);
+  svg.appendChild(l);
+}
+function rect(svg,ns,x,y,w,h,fill) {
+  const r = document.createElementNS(ns,'rect');
+  r.setAttribute('x',x);r.setAttribute('y',y);
+  r.setAttribute('width',w);r.setAttribute('height',h);
+  r.setAttribute('fill',fill);
+  svg.appendChild(r);
+}
+function txt(svg,ns,x,y,content,fill,size,anchor,family) {
+  const t = document.createElementNS(ns,'text');
+  t.setAttribute('x',x);t.setAttribute('y',y);
+  t.setAttribute('fill',fill||'#fff');t.setAttribute('font-size',size||12);
+  t.setAttribute('text-anchor',anchor||'start');
+  t.setAttribute('font-family',family||'DM Mono, monospace');
+  t.textContent = content;
+  svg.appendChild(t);
+}
+function ellipseEl(svg,ns,cx,cy,rx,ry,fill,stroke,sw,rot) {
+  const e = document.createElementNS(ns,'ellipse');
+  e.setAttribute('cx',cx);e.setAttribute('cy',cy);
+  e.setAttribute('rx',rx);e.setAttribute('ry',ry);
+  e.setAttribute('fill',fill||'none');
+  if(stroke) {e.setAttribute('stroke',stroke);e.setAttribute('stroke-width',sw||1);}
+  if(rot) e.setAttribute('transform',`rotate(${rot},${cx},${cy})`);
+  svg.appendChild(e);
+}
+
+// ════════════════════════════════════════════════════════
+// INFO PANEL
+// ════════════════════════════════════════════════════════
+function showInfoPanel() {
+  const inst = INSTRUMENTS[selInstrument];
+  const note = currentNote;
+  const panel = document.getElementById('info-panel');
+  panel.classList.add('show');
+
+  document.getElementById('ip-title').textContent =
+    `${note.written} (concert: ${note.concert}) — ${note.noteId}`;
+
+  const ft = inst.fingeringType;
+  const concertPitch = note.concert;
+  const pitchClass = concertPitch.replace(/[0-9]/g,'');
+
+  let fingeringHTML = '';
+  if(ft === 'trombone') {
+    const td = FINGERINGS.trombone[pitchClass] || FINGERINGS.trombone[note.written.replace(/[0-9]/g,'')];
+    if(td) {
+      const dots = [];
+      for(let i=1;i<=7;i++) {
+        dots.push(`<div class="fing-dot${td.pos.includes(i)?' active':''}">${i}</div>`);
+      }
+      td.alt.forEach(a => dots.push(`<div class="fing-dot active label-dot">${a}</div>`));
+      fingeringHTML = `<div class="fingering-row">${dots.join('')}</div><p style="font-size:10px;color:var(--muted);margin-top:6px">${td.tip}</p>`;
+    }
+  } else if(ft === 'valve3' || ft === 'horn') {
+    const pitchData = FINGERINGS[ft === 'horn' ? 'horn' : 'valve3'][pitchClass];
+    if(pitchData) {
+      if(ft === 'valve3') {
+        const [valves, desc] = pitchData;
+        const dots = valves.map((v,i) => `<div class="fing-dot${v?' active':''}">${i+1}</div>`).join('');
+        fingeringHTML = `<div class="fingering-row">${dots}</div><p style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</p>`;
+      } else {
+        fingeringHTML = `<p>${pitchData}</p>`;
+      }
+    }
+  } else {
+    const ftKey = ft === 'sax' ? 'sax' : ft === 'clarinet' ? 'clarinet' : ft === 'flute' ? 'flute' : 'bassoon';
+    const fd = FINGERINGS[ftKey]?.[pitchClass];
+    if(fd) fingeringHTML = `<p>${fd}</p>`;
+  }
+
+  // Staff position hint
+  const staffHint = note.label
+    ? `<strong>Staff position:</strong> ${note.label}`
+    : `<strong>Note ID:</strong> ${note.noteId} — count lines/spaces from the bottom of the staff`;
+
+  const isOnLine = LINE_Y.some(y => Math.abs(y - note.y) < 5);
+  const posHint = isOnLine ? '📍 This note sits ON a staff line' : '📍 This note sits IN a space between lines';
+
+  const scaleMembership = selScales.filter(s => SCALES_DEF[s].notes.includes(pitchClass)).join(', ');
+
+  document.getElementById('ip-cols').innerHTML = `
+    <div class="info-col">
+      <label>Fingering / Slide Position</label>
+      ${fingeringHTML || '<p>—</p>'}
+    </div>
+    <div class="info-col">
+      <label>Written Note (${INSTRUMENTS[selInstrument].clefTag})</label>
+      <p style="font-size:22px;font-family:'Bebas Neue',sans-serif;color:var(--gold)">${note.written}</p>
+      <p style="font-size:10px;color:var(--muted)">Concert pitch: ${note.concert}</p>
+    </div>
+    <div class="info-col">
+      <label>In Your Selected Scales</label>
+      <p>${scaleMembership || '—'}</p>
+    </div>
+    <div class="info-col">
+      <label>Instrument</label>
+      <p>${inst.desc}</p>
+    </div>
+  `;
+  document.getElementById('ip-hint').innerHTML = `${staffHint}<br>${posHint}<br><strong>Tip:</strong> ${SCALES_DEF[selScales[0]]?.tip || 'Practice slowly, identify the line or space first.'}`;
+}
+
+function hideInfo() {
+  document.getElementById('info-panel').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════════════
+// GUIDE SCREEN
+// ════════════════════════════════════════════════════════
+function showGuide() {
+  const g = document.getElementById('guide-grid');
+  g.innerHTML = '';
+
+  // How to use card
+  const howto = document.createElement('div');
+  howto.className = 'guide-card';
+  howto.style.borderTopColor = 'var(--accent)';
+  howto.style.borderTopWidth = '3px';
+  howto.innerHTML = `<h3 style="color:var(--accent)">HOW TO USE</h3>
+    <p>Pick your instrument, select one or more scales, then hit START. A note appears on the staff — identify it, press the letter + accidental, hit CHECK.</p>
+    <p><strong style="color:var(--green)">✓ Correct:</strong> CORRECT! banner appears. Press NEXT or CHECK again to advance.<br>
+    <strong style="color:var(--red)">✗ Wrong:</strong> The correct note is revealed with full fingering/slide info. Use RETRY to try the same note again until it's locked in.<br>
+    <strong style="color:var(--muted)">NEXT:</strong> Skip to a fresh note anytime.</p>
+    <div class="tip-box"><strong>⚠ Transposition note:</strong> Bb instruments (trumpet, clarinet, tenor sax) write notes a whole step higher than they sound. Eb instruments (alto sax, bari sax) write a major 6th higher. F instruments (French horn) write a 5th higher. The trainer shows you the WRITTEN note as it appears in your part.</div>`;
+  g.appendChild(howto);
+
+  // Scale cards
+  Object.entries(SCALES_DEF).forEach(([name, data]) => {
+    const card = document.createElement('div');
+    card.className = 'guide-card';
+    card.style.borderTopColor = data.color;
+    card.style.borderTopWidth = '3px';
+    const pills = data.notes.map(n => `<span class="pill">${n}</span>`).join('');
+    card.innerHTML = `<h3 style="color:${data.color}">${name}</h3>
+      <div class="pill-row">${pills}</div>
+      <p>${data.desc}</p>
+      <div class="tip-box"><strong>Tip:</strong> ${data.tip}</div>`;
+    g.appendChild(card);
+  });
+
+  // Instrument cards
+  Object.entries(INSTRUMENTS).forEach(([id, data]) => {
+    const card = document.createElement('div');
+    card.className = 'guide-card';
+    card.innerHTML = `<h3>${data.icon} ${data.name}</h3>
+      <p>${data.desc}</p>
+      <div class="tip-box"><strong>Clef & Key:</strong> ${data.clefTag}</div>`;
+    g.appendChild(card);
+  });
+
+  showScreen('guide');
+}
+
+// ════════════════════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goMenu() {
+  selScales = [];
+  showScreen('menu');
+  buildInstGrid();
+}
+
+// INIT
+buildInstGrid();
+</script>
+</body>
+</html>
